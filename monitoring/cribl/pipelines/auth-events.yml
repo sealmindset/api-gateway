@@ -1,0 +1,196 @@
+# Cribl Stream Pipeline: Authentication Events
+# Processes auth-related events from Kong, enriches with subscriber metadata,
+# and flags anomalous patterns (brute force, credential stuffing)
+
+id: auth-events
+description: "Parse auth events, enrich with subscriber data, detect anomalies, route to SIEM/S3/alerting"
+disabled: false
+asyncFuncTimeout: 1000
+functions:
+  # ---------------------------------------------------------------
+  # Step 1: Parse incoming auth event (JSON)
+  # ---------------------------------------------------------------
+  - id: serde
+    filter: "true"
+    disabled: false
+    conf:
+      mode: extract
+      type: json
+      srcField: _raw
+
+  # ---------------------------------------------------------------
+  # Step 2: Extract auth-specific fields
+  # ---------------------------------------------------------------
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: auth_event_type
+          value: >-
+            response_status === 401 ? 'auth_failure' :
+            response_status === 403 ? 'auth_forbidden' :
+            response_status === 200 && request_uri.match(/token/) ? 'token_issued' :
+            response_status === 200 ? 'auth_success' :
+            'auth_unknown'
+        - name: auth_method
+          value: >-
+            (request.headers && request.headers.authorization && request.headers.authorization.startsWith('Bearer')) ? 'oauth2' :
+            (request.headers && request.headers.authorization && request.headers.authorization.startsWith('Basic')) ? 'basic_auth' :
+            (request.headers && request.headers['apikey']) ? 'api_key' :
+            (request.querystring && request.querystring['apikey']) ? 'api_key' :
+            'unknown'
+        - name: consumer_id
+          value: "consumer.id || 'anonymous'"
+        - name: consumer_username
+          value: "consumer.username || 'anonymous'"
+        - name: client_ip
+          value: "client_ip"
+        - name: user_agent
+          value: "request.headers['user-agent'] || 'unknown'"
+        - name: _time
+          value: "started_at / 1000"
+        - name: service_name
+          value: "service.name || 'unknown'"
+        - name: route_name
+          value: "route.name || 'unknown'"
+
+  # ---------------------------------------------------------------
+  # Step 3: Enrich with subscriber metadata via lookup
+  # ---------------------------------------------------------------
+  - id: lookup
+    filter: "consumer_id !== 'anonymous'"
+    disabled: false
+    conf:
+      matchMode: exact
+      matchType: first
+      reloadPeriodSec: 300
+      addToEvent: true
+      inFields:
+        - eventField: consumer_id
+          lookupField: id
+      file: /opt/cribl/lookups/subscribers.csv
+      outFields:
+        - lookupField: organization
+          eventField: subscriber_org
+        - lookupField: tier
+          eventField: subscriber_tier
+        - lookupField: contact_email
+          eventField: subscriber_contact
+        - lookupField: account_status
+          eventField: subscriber_status
+
+  # ---------------------------------------------------------------
+  # Step 4: Detect anomalous patterns using aggregation state
+  # ---------------------------------------------------------------
+  # Flag brute force: >10 failures from same IP in 5 min window
+  - id: aggregation
+    filter: "auth_event_type === 'auth_failure'"
+    disabled: false
+    conf:
+      timeWindow: 300
+      aggregations:
+        - name: failure_count_by_ip
+          field: client_ip
+          func: count
+      groupBy:
+        - client_ip
+
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: anomaly_brute_force
+          value: "(failure_count_by_ip || 0) > 10"
+        - name: anomaly_credential_stuffing
+          value: >-
+            auth_event_type === 'auth_failure'
+            && auth_method === 'basic_auth'
+            && (failure_count_by_ip || 0) > 5
+
+  # Flag overall anomaly
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: is_anomalous
+          value: "anomaly_brute_force === true || anomaly_credential_stuffing === true"
+        - name: anomaly_type
+          value: >-
+            anomaly_brute_force && anomaly_credential_stuffing ? 'brute_force,credential_stuffing' :
+            anomaly_brute_force ? 'brute_force' :
+            anomaly_credential_stuffing ? 'credential_stuffing' :
+            'none'
+        - name: anomaly_severity
+          value: >-
+            anomaly_brute_force && anomaly_credential_stuffing ? 'critical' :
+            anomaly_brute_force ? 'high' :
+            anomaly_credential_stuffing ? 'high' :
+            'info'
+
+  # ---------------------------------------------------------------
+  # Step 5: Mask sensitive auth data
+  # ---------------------------------------------------------------
+  - id: mask
+    filter: "true"
+    disabled: false
+    conf:
+      rules:
+        - matchRegex: "(Bearer\\s+)([A-Za-z0-9\\-._~+/]+=*)"
+          replaceExpr: "`${g1}****${g2.slice(-4)}`"
+          fields:
+            - _raw
+        - matchRegex: "(Basic\\s+)([A-Za-z0-9+/]+=*)"
+          replaceExpr: "`${g1}****${g2.slice(-4)}`"
+          fields:
+            - _raw
+        - matchRegex: "(apikey[\":]\\s*[\"']?)([A-Za-z0-9\\-._~+/]{8,})"
+          replaceExpr: "`${g1}****${g2.slice(-4)}`"
+          fields:
+            - _raw
+
+  # ---------------------------------------------------------------
+  # Step 6: Add routing metadata
+  # ---------------------------------------------------------------
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: cribl_pipeline
+          value: "'auth-events'"
+        - name: cribl_processed_at
+          value: "Date.now() / 1000"
+        - name: index
+          value: "is_anomalous ? 'security_alerts' : 'auth_events'"
+        - name: sourcetype
+          value: "'kong:auth_event'"
+        - name: source
+          value: "'kong_auth'"
+        # Tag for routing: all to SIEM, anomalies to alerting
+        - name: __cribl_route_tags
+          value: >-
+            is_anomalous
+            ? ['siem', 's3_archive', 'alerting']
+            : ['siem', 's3_archive']
+
+  # ---------------------------------------------------------------
+  # Step 7: Serialize for downstream
+  # ---------------------------------------------------------------
+  - id: serde
+    filter: "true"
+    disabled: false
+    conf:
+      mode: reserialize
+      type: json
+      fields:
+        - "!request.headers.authorization"
+        - "!request.headers.cookie"
+        - "*"
+
+groups: {}
+
+output: default
+streamtags: []

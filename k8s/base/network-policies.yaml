@@ -1,0 +1,196 @@
+## Default deny all ingress and egress in the namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+## Allow DNS resolution for all pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+## Kong: allow ingress from ingress controller and Prometheus
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kong-ingress
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  policyTypes:
+    - Ingress
+  ingress:
+    # From ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 8000
+          protocol: TCP
+        - port: 8443
+          protocol: TCP
+    # From admin panel to admin API
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: admin-panel
+      ports:
+        - port: 8001
+          protocol: TCP
+    # From Prometheus for metrics scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - port: 8100
+          protocol: TCP
+---
+## Kong: allow egress to PostgreSQL, Redis, and upstream services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kong-egress
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+  policyTypes:
+    - Egress
+  egress:
+    # To PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - port: 5432
+          protocol: TCP
+    # To Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - port: 6379
+          protocol: TCP
+    # To upstream services (any namespace)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 80
+          protocol: TCP
+        - port: 443
+          protocol: TCP
+        - port: 8080
+          protocol: TCP
+        - port: 8443
+          protocol: TCP
+---
+## Admin panel: allow ingress from ingress controller and Prometheus
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: admin-panel-ingress
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: admin-panel
+  policyTypes:
+    - Ingress
+  ingress:
+    # From ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 8080
+          protocol: TCP
+    # From Prometheus for metrics scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+## Admin panel: allow egress to PostgreSQL, Redis, Kong admin API, and Entra ID
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: admin-panel-egress
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: admin-panel
+  policyTypes:
+    - Egress
+  egress:
+    # To PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - port: 5432
+          protocol: TCP
+    # To Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - port: 6379
+          protocol: TCP
+    # To Kong admin API
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kong
+      ports:
+        - port: 8001
+          protocol: TCP
+    # To Entra ID (OIDC) - external HTTPS
+    - to: []
+      ports:
+        - port: 443
+          protocol: TCP

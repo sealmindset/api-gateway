@@ -1,0 +1,196 @@
+# Cribl Stream Routes Configuration
+# Defines inputs, routing rules, and pipeline assignments
+
+id: api-gateway-routes
+description: "Routes for API Gateway monitoring - Kong logs, auth events, rate limit metrics"
+
+inputs:
+  # ---------------------------------------------------------------
+  # Syslog Input: Kong access logs via TCP 5514
+  # Kong configured to send logs via syslog plugin
+  # ---------------------------------------------------------------
+  - id: syslog_kong
+    type: syslog
+    disabled: false
+    conf:
+      host: "0.0.0.0"
+      port: 5514
+      protocol: tcp
+      enableTLS: false
+      maxActiveCxn: 100
+      activityTimeout: 120
+      enableProxyHeader: false
+    pipeline: ""
+    output: default
+
+  # ---------------------------------------------------------------
+  # HTTP Input: Kong HTTP log plugin output on port 9080
+  # Receives JSON payloads from Kong's http-log plugin
+  # ---------------------------------------------------------------
+  - id: http_kong
+    type: http
+    disabled: false
+    conf:
+      host: "0.0.0.0"
+      port: 9080
+      enableTLS: false
+      maxActiveCxn: 200
+      activityTimeout: 30
+      authType: token
+      authToken: "${CRIBL_HTTP_AUTH_TOKEN}"
+      headers:
+        - name: "X-Cribl-Source"
+          value: "kong-http-log"
+    pipeline: ""
+    output: default
+
+  # ---------------------------------------------------------------
+  # Prometheus Remote Write Input: Port 9090
+  # Receives Prometheus remote write metrics
+  # ---------------------------------------------------------------
+  - id: prometheus_rw
+    type: prometheus
+    disabled: false
+    conf:
+      host: "0.0.0.0"
+      port: 9090
+      enableTLS: false
+      path: "/api/v1/write"
+    pipeline: ""
+    output: default
+
+routes:
+  # ---------------------------------------------------------------
+  # Route 1: Kong Access Logs -> kong-logs pipeline
+  # Match: syslog from kong OR HTTP from kong http-log plugin
+  # ---------------------------------------------------------------
+  - id: kong_access_logs
+    name: "Kong Access Logs"
+    description: "Route Kong access logs through enrichment pipeline"
+    filter: >-
+      (
+        __inputId === 'syslog_kong'
+        && !_raw.match(/"auth_event":\s*true/)
+        && !_raw.match(/"rate_limit_event":\s*true/)
+      )
+      || (
+        __inputId === 'http_kong'
+        && (
+          _raw.match(/"request":\s*\{/)
+          || _raw.match(/"service":\s*\{/)
+        )
+        && !_raw.match(/"auth_event":\s*true/)
+        && !_raw.match(/"rate_limit_event":\s*true/)
+      )
+    pipeline: kong-logs
+    output: kong_access_out
+    enabled: true
+    final: true
+    description_short: "Access logs"
+
+  # ---------------------------------------------------------------
+  # Route 2: Auth Events -> auth-events pipeline
+  # Match: events with auth failure codes or explicit auth event markers
+  # ---------------------------------------------------------------
+  - id: auth_events
+    name: "Authentication Events"
+    description: "Route authentication events through auth enrichment pipeline"
+    filter: >-
+      (
+        __inputId === 'syslog_kong'
+        || __inputId === 'http_kong'
+      )
+      && (
+        _raw.match(/"auth_event":\s*true/)
+        || _raw.match(/"status":\s*(401|403)/)
+        || _raw.match(/"code":\s*(401|403)/)
+        || _raw.match(/"plugin":\s*"(oauth2|key-auth|basic-auth|jwt|hmac-auth)"/)
+      )
+    pipeline: auth-events
+    output: auth_events_out
+    enabled: true
+    final: true
+    description_short: "Auth events"
+
+  # ---------------------------------------------------------------
+  # Route 3: Rate Limit Events -> rate-limit-metrics pipeline
+  # Match: 429 responses or events with rate limit headers
+  # ---------------------------------------------------------------
+  - id: rate_limit_events
+    name: "Rate Limit Events"
+    description: "Route rate limiting events through metrics pipeline"
+    filter: >-
+      (
+        __inputId === 'syslog_kong'
+        || __inputId === 'http_kong'
+      )
+      && (
+        _raw.match(/"rate_limit_event":\s*true/)
+        || _raw.match(/"status":\s*429/)
+        || _raw.match(/"code":\s*429/)
+        || _raw.match(/"x-ratelimit-/)
+      )
+    pipeline: rate-limit-metrics
+    output: rate_limit_out
+    enabled: true
+    final: true
+    description_short: "Rate limit events"
+
+  # ---------------------------------------------------------------
+  # Route 4: Prometheus metrics passthrough
+  # ---------------------------------------------------------------
+  - id: prometheus_metrics
+    name: "Prometheus Metrics"
+    description: "Pass through Prometheus remote write metrics"
+    filter: "__inputId === 'prometheus_rw'"
+    pipeline: ""
+    output: prometheus_out
+    enabled: true
+    final: true
+    description_short: "Prometheus passthrough"
+
+  # ---------------------------------------------------------------
+  # Default Route: Unmatched events
+  # ---------------------------------------------------------------
+  - id: default
+    name: "Default Route"
+    description: "Catch-all for unmatched events - send to S3 for investigation"
+    filter: "true"
+    pipeline: ""
+    output: s3_unmatched
+    enabled: true
+    final: true
+    description_short: "Unmatched events"
+
+outputs:
+  # Placeholder output references (defined in cribl.yml)
+  kong_access_out:
+    type: router
+    routes:
+      - output: splunk_hec
+      - output: s3_archive
+      - output: prometheus_remote_write
+
+  auth_events_out:
+    type: router
+    routes:
+      - output: splunk_hec
+        filter: "true"
+      - output: s3_archive
+        filter: "true"
+      - output: alerting_webhook
+        filter: "is_anomalous === true"
+
+  rate_limit_out:
+    type: router
+    routes:
+      - output: prometheus_remote_write
+      - output: s3_archive
+
+  prometheus_out:
+    type: single
+    output: prometheus_remote_write
+
+  s3_unmatched:
+    type: single
+    output: s3_archive

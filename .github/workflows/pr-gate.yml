@@ -1,0 +1,221 @@
+# =============================================================================
+# PR Gate - API Gateway
+# =============================================================================
+# Enforces required status checks before a PR can merge to main.
+# This workflow acts as the final gate, aggregating results from CI checks.
+#
+# NOTE: The following must also be configured in GitHub repository settings:
+#   Settings > Branches > Branch protection rules for 'main':
+#   - Require a pull request before merging
+#   - Require approvals: 1 (minimum)
+#   - Require review from Code Owners
+#   - Require status checks to pass before merging:
+#     - "PR Gate / All Checks Passed"
+#   - Require branches to be up to date before merging
+#   - Do not allow bypassing the above settings
+#
+# For production deployments, configure:
+#   Settings > Environments > production:
+#   - Required reviewers: members of @infra-team
+#   - Wait timer: 0 (immediate after approval)
+#   - Deployment branches: main only
+# =============================================================================
+
+name: PR Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Aggregate all required checks into a single status
+  # ---------------------------------------------------------------------------
+  all-checks:
+    name: All Checks Passed
+    runs-on: ubuntu-latest
+    # Skip draft PRs
+    if: github.event.pull_request.draft == false
+    # These are the jobs from ci.yml that must succeed
+    needs:
+      - check-ci-lint
+      - check-ci-test
+      - check-ci-security
+      - check-ci-terraform-plan
+      - check-codeowners
+    steps:
+      - name: All required checks passed
+        run: echo "All required checks have passed. PR is ready for review."
+
+  # ---------------------------------------------------------------------------
+  # Verify CI lint job passed
+  # ---------------------------------------------------------------------------
+  check-ci-lint:
+    name: Verify Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for CI Lint
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: "Lint"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+          allowed-conclusions: success
+
+  # ---------------------------------------------------------------------------
+  # Verify CI test job passed
+  # ---------------------------------------------------------------------------
+  check-ci-test:
+    name: Verify Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for CI Test
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: "Test"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+          allowed-conclusions: success
+
+  # ---------------------------------------------------------------------------
+  # Verify security scan passed
+  # ---------------------------------------------------------------------------
+  check-ci-security:
+    name: Verify Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Security Scan
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: "Security Scan"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+          allowed-conclusions: success
+
+  # ---------------------------------------------------------------------------
+  # Verify Terraform plan succeeded (at least dev must pass)
+  # ---------------------------------------------------------------------------
+  check-ci-terraform-plan:
+    name: Verify Terraform Plan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for Terraform changes
+        id: tf-changes
+        run: |
+          CHANGED=$(git diff --name-only origin/main...HEAD -- terraform/)
+          if [ -n "$CHANGED" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for Terraform Plan
+        if: steps.tf-changes.outputs.has_changes == 'true'
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: "Terraform Plan (dev)"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+          allowed-conclusions: success
+
+      - name: No Terraform changes
+        if: steps.tf-changes.outputs.has_changes == 'false'
+        run: echo "No Terraform changes detected, skipping plan verification."
+
+  # ---------------------------------------------------------------------------
+  # Verify CODEOWNERS approval
+  # ---------------------------------------------------------------------------
+  check-codeowners:
+    name: Verify CODEOWNERS Approval
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check changed paths and required reviewers
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            const changedPaths = files.map(f => f.filename);
+            const warnings = [];
+
+            // Check if production-critical paths are modified
+            const infraPaths = changedPaths.filter(p =>
+              p.startsWith('terraform/') || p.startsWith('.github/')
+            );
+            if (infraPaths.length > 0) {
+              warnings.push(
+                `Infrastructure files changed (${infraPaths.length} files). ` +
+                `Ensure @infra-team has reviewed.`
+              );
+            }
+
+            const k8sPaths = changedPaths.filter(p => p.startsWith('k8s/'));
+            if (k8sPaths.length > 0) {
+              warnings.push(
+                `Kubernetes manifests changed (${k8sPaths.length} files). ` +
+                `Ensure @infra-team and @platform-team have reviewed.`
+              );
+            }
+
+            if (warnings.length > 0) {
+              core.info('CODEOWNERS review requirements:');
+              warnings.forEach(w => core.info(`  - ${w}`));
+            } else {
+              core.info('No special CODEOWNERS review requirements detected.');
+            }
+
+  # ---------------------------------------------------------------------------
+  # Production deployment gate (informational)
+  # Actual enforcement is via GitHub Environment protection rules
+  # ---------------------------------------------------------------------------
+  prod-deploy-info:
+    name: Production Deploy Requirements
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'deploy:prod') ||
+      contains(github.event.pull_request.title, '[PROD]')
+    steps:
+      - name: Production deployment notice
+        run: |
+          echo "============================================="
+          echo " PRODUCTION DEPLOYMENT NOTICE"
+          echo "============================================="
+          echo ""
+          echo "This PR is flagged for production deployment."
+          echo "Additional requirements:"
+          echo "  1. Approval from @infra-team member required"
+          echo "  2. All CI checks must pass"
+          echo "  3. Staging deployment must succeed first"
+          echo "  4. Manual approval in GitHub Environment"
+          echo ""
+          echo "============================================="

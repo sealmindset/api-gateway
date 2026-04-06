@@ -1,0 +1,48 @@
+# Grafana Datasource Provisioning
+# Auto-provisioned on startup
+
+apiVersion: 1
+
+deleteDatasources: []
+
+datasources:
+  # Prometheus - Primary metrics store (default)
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    orgId: 1
+    uid: prometheus
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      httpMethod: POST
+      manageAlerts: true
+      prometheusType: Prometheus
+      prometheusVersion: "2.45.0"
+      cacheLevel: "High"
+      incrementalQuerying: true
+      incrementalQueryOverlapWindow: 10m
+      exemplarTraceIdDestinations:
+        - name: traceID
+          datasourceUid: tempo
+    editable: false
+
+  # PostgreSQL - Admin panel data
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    orgId: 1
+    uid: postgresql
+    url: postgres-kong:5432
+    database: kong_admin
+    user: "$__env{POSTGRES_USER}"
+    jsonData:
+      sslmode: require
+      maxOpenConns: 10
+      maxIdleConns: 5
+      connMaxLifetime: 14400
+      postgresVersion: 1500
+      timescaledb: false
+    secureJsonData:
+      password: "$__env{POSTGRES_PASSWORD}"
+    editable: false

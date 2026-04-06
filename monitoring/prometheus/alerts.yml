@@ -1,0 +1,448 @@
+# Alerting Rules for API Gateway Monitoring
+# Severity levels: critical, warning, info
+
+groups:
+  # =================================================================
+  # Kong Gateway - Error Rate Alerts
+  # =================================================================
+  - name: kong_error_rates
+    rules:
+      - alert: KongHighErrorRate
+        expr: |
+          (
+            sum(rate(kong_http_requests_total{code=~"5.."}[5m])) by (service)
+            /
+            sum(rate(kong_http_requests_total[5m])) by (service)
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          component: kong
+          team: platform
+        annotations:
+          summary: "High 5xx error rate on {{ $labels.service }}"
+          description: >-
+            Service {{ $labels.service }} has a 5xx error rate of
+            {{ $value | humanizePercentage }} over the last 5 minutes,
+            exceeding the 5% threshold.
+          impact: "Upstream service degradation affecting consumer traffic."
+          runbook_url: "https://wiki.internal/runbooks/kong-high-error-rate"
+          dashboard_url: "https://grafana.internal/d/gateway-overview?var-service={{ $labels.service }}"
+
+      - alert: KongElevatedErrorRate
+        expr: |
+          (
+            sum(rate(kong_http_requests_total{code=~"5.."}[5m])) by (service)
+            /
+            sum(rate(kong_http_requests_total[5m])) by (service)
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          component: kong
+          team: platform
+        annotations:
+          summary: "Elevated 5xx error rate on {{ $labels.service }}"
+          description: >-
+            Service {{ $labels.service }} has a 5xx error rate of
+            {{ $value | humanizePercentage }} over the last 5 minutes,
+            exceeding the 1% warning threshold.
+          runbook_url: "https://wiki.internal/runbooks/kong-high-error-rate"
+
+      - alert: KongHigh4xxRate
+        expr: |
+          (
+            sum(rate(kong_http_requests_total{code=~"4.."}[5m])) by (service)
+            /
+            sum(rate(kong_http_requests_total[5m])) by (service)
+          ) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+          component: kong
+          team: platform
+        annotations:
+          summary: "High 4xx error rate on {{ $labels.service }}"
+          description: >-
+            Service {{ $labels.service }} has a 4xx error rate of
+            {{ $value | humanizePercentage }}. This may indicate client
+            misconfiguration or an attack.
+          runbook_url: "https://wiki.internal/runbooks/kong-high-4xx-rate"
+
+  # =================================================================
+  # Kong Gateway - Latency Alerts
+  # =================================================================
+  - name: kong_latency
+    rules:
+      - alert: KongHighLatencyP99
+        expr: kong_latency_p99:5m > 1000
+        for: 3m
+        labels:
+          severity: critical
+          component: kong
+          team: platform
+        annotations:
+          summary: "P99 latency exceeds 1s on {{ $labels.service }}"
+          description: >-
+            Service {{ $labels.service }} P99 latency is {{ $value }}ms,
+            exceeding the 1000ms threshold for 3 minutes.
+          impact: "Consumer-facing latency degradation. SLA may be at risk."
+          runbook_url: "https://wiki.internal/runbooks/kong-high-latency"
+          dashboard_url: "https://grafana.internal/d/gateway-overview?var-service={{ $labels.service }}"
+
+      - alert: KongHighLatencyP95
+        expr: kong_latency_p95:5m > 500
+        for: 5m
+        labels:
+          severity: warning
+          component: kong
+          team: platform
+        annotations:
+          summary: "P95 latency exceeds 500ms on {{ $labels.service }}"
+          description: >-
+            Service {{ $labels.service }} P95 latency is {{ $value }}ms,
+            exceeding the 500ms warning threshold.
+          runbook_url: "https://wiki.internal/runbooks/kong-high-latency"
+
+      - alert: KongUpstreamLatencySpike
+        expr: |
+          kong_latency_p95:5m
+          > 2 * avg_over_time(kong_latency_p95:5m[1h] offset 5m)
+        for: 5m
+        labels:
+          severity: warning
+          component: kong
+          team: platform
+        annotations:
+          summary: "Upstream latency spike on {{ $labels.service }}"
+          description: >-
+            Service {{ $labels.service }} P95 latency has doubled compared
+            to the last hour average, indicating a potential upstream issue.
+          runbook_url: "https://wiki.internal/runbooks/kong-latency-spike"
+
+  # =================================================================
+  # Authentication Alerts
+  # =================================================================
+  - name: kong_authentication
+    rules:
+      - alert: KongAuthFailureSpike
+        expr: |
+          (
+            sum(rate(kong_http_requests_total{code=~"401|403"}[5m])) by (service)
+            /
+            sum(rate(kong_http_requests_total[5m])) by (service)
+          ) > 0.20
+        for: 2m
+        labels:
+          severity: critical
+          component: kong
+          team: security
+        annotations:
+          summary: "Authentication failure spike on {{ $labels.service }}"
+          description: >-
+            Service {{ $labels.service }} has an authentication failure rate
+            of {{ $value | humanizePercentage }}, exceeding the 20% threshold.
+            Possible brute force or credential stuffing attack.
+          impact: "Potential security incident. May indicate active attack."
+          runbook_url: "https://wiki.internal/runbooks/kong-auth-failure-spike"
+          dashboard_url: "https://grafana.internal/d/authentication?var-service={{ $labels.service }}"
+
+      - alert: KongAuthFailureElevated
+        expr: |
+          (
+            sum(rate(kong_http_requests_total{code=~"401|403"}[5m])) by (service)
+            /
+            sum(rate(kong_http_requests_total[5m])) by (service)
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          component: kong
+          team: security
+        annotations:
+          summary: "Elevated auth failure rate on {{ $labels.service }}"
+          description: >-
+            Service {{ $labels.service }} has an elevated authentication
+            failure rate of {{ $value | humanizePercentage }}.
+          runbook_url: "https://wiki.internal/runbooks/kong-auth-failure-spike"
+
+      - alert: KongNoAuthSuccesses
+        expr: |
+          sum(rate(kong_http_requests_total{code!~"401|403"}[5m])) by (service) == 0
+          and
+          sum(rate(kong_http_requests_total[5m])) by (service) > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: kong
+          team: security
+        annotations:
+          summary: "No successful auth on {{ $labels.service }}"
+          description: >-
+            All requests to {{ $labels.service }} are failing authentication.
+            Auth provider may be down.
+          runbook_url: "https://wiki.internal/runbooks/kong-auth-provider-down"
+
+  # =================================================================
+  # Rate Limiting Alerts
+  # =================================================================
+  - name: kong_rate_limiting
+    rules:
+      - alert: KongRateLimitViolationSpike
+        expr: |
+          sum(rate(kong_http_requests_total{code="429"}[5m])) by (service)
+          > 10
+        for: 2m
+        labels:
+          severity: warning
+          component: kong
+          team: platform
+        annotations:
+          summary: "Rate limit violations spiking on {{ $labels.service }}"
+          description: >-
+            Service {{ $labels.service }} is seeing {{ $value }} rate-limited
+            requests per second. Consumers may need limit adjustments or
+            may be misbehaving.
+          runbook_url: "https://wiki.internal/runbooks/kong-rate-limit-violations"
+          dashboard_url: "https://grafana.internal/d/rate-limiting?var-service={{ $labels.service }}"
+
+      - alert: KongRateLimitViolationCritical
+        expr: |
+          (
+            sum(rate(kong_http_requests_total{code="429"}[5m])) by (service)
+            /
+            sum(rate(kong_http_requests_total[5m])) by (service)
+          ) > 0.15
+        for: 5m
+        labels:
+          severity: critical
+          component: kong
+          team: platform
+        annotations:
+          summary: "Excessive rate limiting on {{ $labels.service }}"
+          description: >-
+            Over 15% of requests to {{ $labels.service }} are being
+            rate-limited. This may indicate a DDoS or misconfigured limits.
+          runbook_url: "https://wiki.internal/runbooks/kong-rate-limit-violations"
+
+  # =================================================================
+  # Infrastructure Alerts
+  # =================================================================
+  - name: kong_infrastructure
+    rules:
+      - alert: KongPodDown
+        expr: up{job="kong"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: kong
+          team: platform
+        annotations:
+          summary: "Kong pod {{ $labels.instance }} is down"
+          description: >-
+            Kong pod {{ $labels.instance }} has been unreachable for over
+            1 minute. Check pod status and node health.
+          impact: "Reduced gateway capacity. Possible traffic disruption."
+          runbook_url: "https://wiki.internal/runbooks/kong-pod-down"
+          dashboard_url: "https://grafana.internal/d/infrastructure"
+
+      - alert: KongPodHighMemory
+        expr: |
+          container_memory_usage_bytes{container="kong"}
+          / container_spec_memory_limit_bytes{container="kong"}
+          > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: kong
+          team: platform
+        annotations:
+          summary: "Kong pod memory usage high on {{ $labels.pod }}"
+          description: >-
+            Kong pod {{ $labels.pod }} is using {{ $value | humanizePercentage }}
+            of its memory limit. OOM kill risk.
+          runbook_url: "https://wiki.internal/runbooks/kong-high-memory"
+
+      - alert: KongPodHighCPU
+        expr: |
+          rate(container_cpu_usage_seconds_total{container="kong"}[5m])
+          / container_spec_cpu_quota{container="kong"}
+          * container_spec_cpu_period{container="kong"}
+          > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: kong
+          team: platform
+        annotations:
+          summary: "Kong pod CPU usage high on {{ $labels.pod }}"
+          description: >-
+            Kong pod {{ $labels.pod }} CPU utilization exceeds 85%.
+          runbook_url: "https://wiki.internal/runbooks/kong-high-cpu"
+
+      - alert: KongPodRestarting
+        expr: increase(kube_pod_container_status_restarts_total{container="kong"}[1h]) > 3
+        for: 0m
+        labels:
+          severity: warning
+          component: kong
+          team: platform
+        annotations:
+          summary: "Kong pod {{ $labels.pod }} restarting frequently"
+          description: >-
+            Kong pod {{ $labels.pod }} has restarted {{ $value }} times
+            in the last hour. Check logs for crash reasons.
+          runbook_url: "https://wiki.internal/runbooks/kong-pod-restarts"
+
+      - alert: KongDatabaseConnectionErrors
+        expr: |
+          rate(kong_datastore_reachable[5m]) == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: kong
+          team: platform
+        annotations:
+          summary: "Kong cannot reach database"
+          description: >-
+            Kong has been unable to reach its datastore for over 1 minute.
+            All configuration updates and new consumer registrations will fail.
+          impact: "Gateway cannot load new configuration or validate consumers."
+          runbook_url: "https://wiki.internal/runbooks/kong-database-connection"
+
+      - alert: KongDatabaseLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(kong_datastore_query_latency_ms_bucket[5m])) by (le))
+          > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: kong
+          team: platform
+        annotations:
+          summary: "Kong database query latency is high"
+          description: >-
+            P95 database query latency is {{ $value }}ms (threshold: 100ms).
+            Check database load and connection pool settings.
+          runbook_url: "https://wiki.internal/runbooks/kong-database-latency"
+
+      - alert: KongHPAMaxedOut
+        expr: |
+          kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=~".*kong.*"}
+          ==
+          kube_horizontalpodautoscaler_spec_max_replicas{horizontalpodautoscaler=~".*kong.*"}
+        for: 15m
+        labels:
+          severity: warning
+          component: kong
+          team: platform
+        annotations:
+          summary: "Kong HPA at maximum replicas"
+          description: >-
+            Kong HPA has been at maximum replica count for 15 minutes.
+            Consider increasing the max or optimizing resource usage.
+          runbook_url: "https://wiki.internal/runbooks/kong-hpa-maxed"
+
+  # =================================================================
+  # AI Layer Alerts
+  # =================================================================
+  - name: ai_layer
+    rules:
+      - alert: AIProviderDown
+        expr: |
+          (
+            sum(rate(ai_gateway_analyses_total{status="error"}[5m])) by (provider)
+            /
+            sum(rate(ai_gateway_analyses_total[5m])) by (provider)
+          ) > 0.95
+          or
+          sum(rate(ai_gateway_analyses_total[5m])) by (provider) == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: ai-layer
+          team: platform
+        annotations:
+          summary: "AI provider {{ $labels.provider }} is down"
+          description: >-
+            AI provider {{ $labels.provider }} has been returning errors or
+            is unreachable for over 5 minutes. AI-powered features (anomaly
+            detection, smart routing, rate limit suggestions) are degraded.
+          impact: "AI layer functionality is offline. Gateway falls back to static rules."
+          runbook_url: "https://wiki.internal/runbooks/ai-provider-down"
+          dashboard_url: "https://grafana.internal/d/ai-layer-overview"
+
+      - alert: AIHighLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(ai_gateway_latency_ms_bucket[5m])) by (le, analysis_type)
+          ) > 3000
+        for: 5m
+        labels:
+          severity: warning
+          component: ai-layer
+          team: platform
+        annotations:
+          summary: "AI analysis p99 latency exceeds 3s for {{ $labels.analysis_type }}"
+          description: >-
+            The p99 latency for AI {{ $labels.analysis_type }} analysis is
+            {{ $value }}ms, exceeding the 3000ms threshold. This adds
+            significant overhead to request processing.
+          impact: "Increased request latency for AI-enhanced routes."
+          runbook_url: "https://wiki.internal/runbooks/ai-high-latency"
+          dashboard_url: "https://grafana.internal/d/ai-layer-overview"
+
+      - alert: AIAnomalySpike
+        expr: |
+          sum(rate(ai_gateway_analyses_total{analysis_type="anomaly", action_taken=~"throttle|block|alert"}[5m])) * 60
+          > 10
+        for: 2m
+        labels:
+          severity: warning
+          component: ai-layer
+          team: security
+        annotations:
+          summary: "AI anomaly detection rate exceeds 10/min"
+          description: >-
+            The AI anomaly detection system is flagging {{ $value | humanize }}
+            anomalous requests per minute (threshold: 10/min). This may
+            indicate an active attack or a shift in traffic patterns.
+          impact: "Possible security incident. Review anomaly events for false positives."
+          runbook_url: "https://wiki.internal/runbooks/ai-anomaly-spike"
+          dashboard_url: "https://grafana.internal/d/ai-layer-overview"
+
+      - alert: AICostBudgetWarning
+        expr: |
+          sum(rate(ai_gateway_cost_usd_total[1h])) * 3600 > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: ai-layer
+          team: platform
+        annotations:
+          summary: "AI hourly cost exceeds $5 warning threshold"
+          description: >-
+            AI layer spending is {{ $value | humanize }} USD/hour,
+            exceeding the $5/hour warning budget. Review analysis volume
+            and consider enabling caching or reducing analysis frequency.
+          runbook_url: "https://wiki.internal/runbooks/ai-cost-budget"
+          dashboard_url: "https://grafana.internal/d/ai-layer-overview"
+
+      - alert: AICostBudgetCritical
+        expr: |
+          sum(rate(ai_gateway_cost_usd_total[1h])) * 3600 > 20
+        for: 5m
+        labels:
+          severity: critical
+          component: ai-layer
+          team: platform
+        annotations:
+          summary: "AI hourly cost exceeds $20 critical threshold"
+          description: >-
+            AI layer spending is {{ $value | humanize }} USD/hour,
+            exceeding the $20/hour critical budget. Immediate action
+            required: consider disabling non-essential AI analyses or
+            enabling aggressive caching.
+          impact: "Runaway AI costs. May exhaust monthly budget prematurely."
+          runbook_url: "https://wiki.internal/runbooks/ai-cost-budget"
+          dashboard_url: "https://grafana.internal/d/ai-layer-overview"

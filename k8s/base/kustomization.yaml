@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: api-gateway
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - namespace.yaml
+  - kong-configmap.yaml
+  - kong-secrets.yaml
+  - kong-deployment.yaml
+  - kong-service.yaml
+  - admin-panel-deployment.yaml
+  - admin-panel-service.yaml
+  - ingress.yaml
+  - network-policies.yaml
+  - pdb.yaml

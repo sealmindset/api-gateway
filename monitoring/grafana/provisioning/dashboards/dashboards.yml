@@ -1,0 +1,17 @@
+# Grafana Dashboard Provisioning
+# Auto-loads dashboards from the configured path on startup
+
+apiVersion: 1
+
+providers:
+  - name: "API Gateway Dashboards"
+    orgId: 1
+    folder: "API Gateway"
+    folderUid: "api-gateway"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

@@ -1,0 +1,202 @@
+# Cribl Stream Pipeline: Rate Limit Metrics
+# Processes rate limiting events, aggregates by consumer/window,
+# calculates violation rates, and routes to Prometheus/S3
+
+id: rate-limit-metrics
+description: "Parse rate limit events, aggregate by consumer, calculate violation rates, route to Prometheus/S3"
+disabled: false
+asyncFuncTimeout: 1000
+functions:
+  # ---------------------------------------------------------------
+  # Step 1: Parse incoming rate limit event (JSON)
+  # ---------------------------------------------------------------
+  - id: serde
+    filter: "true"
+    disabled: false
+    conf:
+      mode: extract
+      type: json
+      srcField: _raw
+
+  # ---------------------------------------------------------------
+  # Step 2: Extract rate limit-specific fields
+  # ---------------------------------------------------------------
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: consumer_id
+          value: "consumer.id || 'anonymous'"
+        - name: consumer_username
+          value: "consumer.username || 'anonymous'"
+        - name: consumer_group
+          value: "consumer.group || 'default'"
+        - name: service_name
+          value: "service.name || 'unknown'"
+        - name: route_name
+          value: "route.name || 'unknown'"
+        - name: client_ip
+          value: "client_ip"
+        - name: response_status
+          value: "response.status"
+        - name: is_rate_limited
+          value: "response.status === 429"
+        - name: rate_limit_remaining
+          value: "response.headers['x-ratelimit-remaining-second'] || response.headers['x-ratelimit-remaining-minute'] || response.headers['x-ratelimit-remaining-hour'] || -1"
+        - name: rate_limit_limit
+          value: "response.headers['x-ratelimit-limit-second'] || response.headers['x-ratelimit-limit-minute'] || response.headers['x-ratelimit-limit-hour'] || -1"
+        - name: rate_limit_window
+          value: >-
+            response.headers['x-ratelimit-remaining-second'] != null ? 'second' :
+            response.headers['x-ratelimit-remaining-minute'] != null ? 'minute' :
+            response.headers['x-ratelimit-remaining-hour'] != null ? 'hour' :
+            'unknown'
+        - name: _time
+          value: "started_at / 1000"
+
+  # ---------------------------------------------------------------
+  # Step 3: Calculate utilization percentage
+  # ---------------------------------------------------------------
+  - id: eval
+    filter: "rate_limit_limit > 0"
+    disabled: false
+    conf:
+      add:
+        - name: rate_limit_utilization_pct
+          value: "Math.round((1 - (rate_limit_remaining / rate_limit_limit)) * 100)"
+        - name: rate_limit_near_threshold
+          value: "rate_limit_utilization_pct > 80"
+
+  # ---------------------------------------------------------------
+  # Step 4: Aggregate by consumer and time window
+  # Produces per-consumer metrics over sliding windows
+  # ---------------------------------------------------------------
+  - id: aggregation
+    filter: "true"
+    disabled: false
+    conf:
+      timeWindow: 60
+      aggregations:
+        - name: total_requests
+          func: count
+        - name: total_violations
+          field: is_rate_limited
+          func: sum
+        - name: avg_utilization
+          field: rate_limit_utilization_pct
+          func: avg
+        - name: max_utilization
+          field: rate_limit_utilization_pct
+          func: max
+      groupBy:
+        - consumer_username
+        - consumer_group
+        - service_name
+        - rate_limit_window
+      cumulative: false
+      flushOnInputClose: true
+
+  # ---------------------------------------------------------------
+  # Step 5: Calculate violation rate from aggregated data
+  # ---------------------------------------------------------------
+  - id: eval
+    filter: "total_requests > 0"
+    disabled: false
+    conf:
+      add:
+        - name: violation_rate_pct
+          value: "Math.round((total_violations / total_requests) * 100)"
+        - name: is_high_violation_rate
+          value: "violation_rate_pct > 10"
+
+  # ---------------------------------------------------------------
+  # Step 6: Format as Prometheus metrics for remote write
+  # ---------------------------------------------------------------
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: __prometheus_metrics
+          value: |
+            [
+              {
+                name: 'kong_ratelimit_violations_total',
+                type: 'counter',
+                value: total_violations || 0,
+                labels: {
+                  consumer: consumer_username,
+                  consumer_group: consumer_group,
+                  service: service_name,
+                  window: rate_limit_window
+                }
+              },
+              {
+                name: 'kong_ratelimit_requests_total',
+                type: 'counter',
+                value: total_requests || 0,
+                labels: {
+                  consumer: consumer_username,
+                  consumer_group: consumer_group,
+                  service: service_name,
+                  window: rate_limit_window
+                }
+              },
+              {
+                name: 'kong_ratelimit_utilization_percent',
+                type: 'gauge',
+                value: avg_utilization || 0,
+                labels: {
+                  consumer: consumer_username,
+                  consumer_group: consumer_group,
+                  service: service_name,
+                  window: rate_limit_window
+                }
+              },
+              {
+                name: 'kong_ratelimit_violation_rate_percent',
+                type: 'gauge',
+                value: violation_rate_pct || 0,
+                labels: {
+                  consumer: consumer_username,
+                  consumer_group: consumer_group,
+                  service: service_name,
+                  window: rate_limit_window
+                }
+              }
+            ]
+
+  # ---------------------------------------------------------------
+  # Step 7: Add routing metadata
+  # ---------------------------------------------------------------
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: cribl_pipeline
+          value: "'rate-limit-metrics'"
+        - name: cribl_processed_at
+          value: "Date.now() / 1000"
+        - name: index
+          value: "'kong_rate_limits'"
+        - name: sourcetype
+          value: "'kong:ratelimit'"
+        - name: source
+          value: "'kong_rate_limit'"
+
+  # ---------------------------------------------------------------
+  # Step 8: Serialize for downstream
+  # ---------------------------------------------------------------
+  - id: serde
+    filter: "true"
+    disabled: false
+    conf:
+      mode: reserialize
+      type: json
+
+groups: {}
+
+output: default
+streamtags: []

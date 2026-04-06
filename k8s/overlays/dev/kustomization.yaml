@@ -1,0 +1,99 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: api-gateway
+
+namePrefix: dev-
+
+commonLabels:
+  environment: dev
+
+resources:
+  - ../../base
+
+patches:
+  # Kong: 1 replica, smaller resources
+  - target:
+      kind: Deployment
+      name: kong
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: kong
+      spec:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - name: kong
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 256Mi
+                  limits:
+                    cpu: 500m
+                    memory: 512Mi
+
+  # Admin panel: 1 replica, smaller resources
+  - target:
+      kind: Deployment
+      name: admin-panel
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: admin-panel
+      spec:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - name: admin-panel
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 128Mi
+                  limits:
+                    cpu: 250m
+                    memory: 256Mi
+
+  # PDB: lower minAvailable for dev
+  - target:
+      kind: PodDisruptionBudget
+      name: kong-pdb
+    patch: |
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: kong-pdb
+      spec:
+        minAvailable: 0
+
+  - target:
+      kind: PodDisruptionBudget
+      name: admin-panel-pdb
+    patch: |
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: admin-panel-pdb
+      spec:
+        minAvailable: 0
+
+  # Remove pod anti-affinity in dev
+  - target:
+      kind: Deployment
+      name: kong
+    patch: |
+      - op: remove
+        path: /spec/template/spec/affinity
+    type: json
+
+  - target:
+      kind: Deployment
+      name: admin-panel
+    patch: |
+      - op: remove
+        path: /spec/template/spec/affinity
+    type: json

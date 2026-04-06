@@ -1,0 +1,73 @@
+# Recording Rules for Kong API Gateway metrics
+groups:
+  - name: kong_request_rates
+    interval: 15s
+    rules:
+      # Request rate over 5 minutes
+      - record: kong_request_rate:5m
+        expr: sum(rate(kong_http_requests_total[5m])) by (service, route, code)
+
+      # Request rate per service
+      - record: kong_request_rate_by_service:5m
+        expr: sum(rate(kong_http_requests_total[5m])) by (service)
+
+  - name: kong_latency_percentiles
+    interval: 15s
+    rules:
+      # P50 latency over 5 minutes
+      - record: kong_latency_p50:5m
+        expr: histogram_quantile(0.50, sum(rate(kong_request_latency_ms_bucket[5m])) by (le, service, route))
+
+      # P95 latency over 5 minutes
+      - record: kong_latency_p95:5m
+        expr: histogram_quantile(0.95, sum(rate(kong_request_latency_ms_bucket[5m])) by (le, service, route))
+
+      # P99 latency over 5 minutes
+      - record: kong_latency_p99:5m
+        expr: histogram_quantile(0.99, sum(rate(kong_request_latency_ms_bucket[5m])) by (le, service, route))
+
+  - name: kong_auth_metrics
+    interval: 15s
+    rules:
+      # Auth success rate over 5 minutes
+      - record: kong_auth_success_rate:5m
+        expr: |
+          sum(rate(kong_http_requests_total{code!~"401|403"}[5m])) by (service)
+          /
+          sum(rate(kong_http_requests_total[5m])) by (service)
+
+  - name: kong_rate_limit_metrics
+    interval: 15s
+    rules:
+      # Rate limit violations over 5 minutes
+      - record: kong_rate_limit_violations:5m
+        expr: sum(rate(kong_http_requests_total{code="429"}[5m])) by (service, consumer)
+
+  # =================================================================
+  # AI Layer Metrics
+  # =================================================================
+  - name: ai_layer_metrics
+    interval: 15s
+    rules:
+      # AI analysis rate over 5 minutes, by type
+      - record: ai_analysis_rate:5m
+        expr: sum(rate(ai_gateway_analyses_total[5m])) by (analysis_type, provider, model)
+
+      # AI anomaly detection rate over 5 minutes
+      - record: ai_anomaly_detection_rate:5m
+        expr: sum(rate(ai_gateway_analyses_total{analysis_type="anomaly"}[5m])) by (action_taken)
+
+      # AI average latency over 5 minutes, by type
+      - record: ai_average_latency:5m
+        expr: |
+          sum(rate(ai_gateway_latency_ms_sum[5m])) by (analysis_type)
+          /
+          sum(rate(ai_gateway_latency_ms_count[5m])) by (analysis_type)
+
+      # AI cost rate per hour, by provider and model
+      - record: ai_cost_rate:1h
+        expr: sum(rate(ai_gateway_cost_usd_total[1h])) by (provider, model, analysis_type) * 3600
+
+      # AI anomaly block rate over 5 minutes
+      - record: ai_anomaly_block_rate:5m
+        expr: sum(rate(ai_gateway_analyses_total{analysis_type="anomaly", action_taken="block"}[5m]))

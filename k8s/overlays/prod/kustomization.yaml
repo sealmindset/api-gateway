@@ -1,0 +1,85 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: api-gateway
+
+namePrefix: prod-
+
+commonLabels:
+  environment: prod
+
+resources:
+  - ../../base
+  - ../../autoscaling/kong-hpa.yaml
+  - ../../autoscaling/kong-keda.yaml
+  - ../../autoscaling/admin-hpa.yaml
+
+patches:
+  # Kong: 3 replicas base (HPA/KEDA will scale up)
+  - target:
+      kind: Deployment
+      name: kong
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: kong
+      spec:
+        replicas: 3
+        template:
+          spec:
+            priorityClassName: api-gateway-high
+            containers:
+              - name: kong
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 512Mi
+                  limits:
+                    cpu: "2"
+                    memory: 2Gi
+            topologySpreadConstraints:
+              - maxSkew: 1
+                topologyKey: topology.kubernetes.io/zone
+                whenUnsatisfiable: DoNotSchedule
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: kong
+
+  # Admin panel: 2 replicas base (HPA will scale up)
+  - target:
+      kind: Deployment
+      name: admin-panel
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: admin-panel
+      spec:
+        replicas: 2
+        template:
+          spec:
+            priorityClassName: api-gateway-medium
+            containers:
+              - name: admin-panel
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 256Mi
+                  limits:
+                    cpu: "1"
+                    memory: 1Gi
+
+  # Ingress: stricter rate limiting for prod
+  - target:
+      kind: Ingress
+      name: api-gateway
+    patch: |
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: api-gateway
+        annotations:
+          nginx.ingress.kubernetes.io/limit-rps: "50"
+          nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
+          nginx.ingress.kubernetes.io/limit-connections: "25"

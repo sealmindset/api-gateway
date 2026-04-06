@@ -1,0 +1,518 @@
+Script started on Mon Apr  6 07:49:45 2026
+^C[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 api-gateway % [K[?2004h[?2004l
+[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 api-gateway % [K[?2004hccd sc  c  lls -l[?2004l
+total 72
+drwxr-xr-x@ 5 rob.vance@sleepnumber.com  staff    160 Apr  6 07:41 admin-panel
+drwxr-xr-x@ 4 rob.vance@sleepnumber.com  staff    128 Apr  6 07:42 database
+-rw-r--r--@ 1 rob.vance@sleepnumber.com  staff   7258 Apr  6 07:40 docker-compose.prod.yml
+-rw-r--r--@ 1 rob.vance@sleepnumber.com  staff  10304 Apr  6 07:39 docker-compose.yml
+drwxr-xr-x@ 5 rob.vance@sleepnumber.com  staff    160 Apr  6 07:34 k8s
+drwxr-xr-x@ 6 rob.vance@sleepnumber.com  staff    192 Apr  6 07:39 kong
+drwxr-xr-x@ 5 rob.vance@sleepnumber.com  staff    160 Apr  6 07:34 monitoring
+-rw-r--r--@ 1 rob.vance@sleepnumber.com  staff  11546 Apr  6 07:44 README.md
+drwxr-xr-x@ 4 rob.vance@sleepnumber.com  staff    128 Apr  6 07:43 scripts
+drwxr-xr-x@ 7 rob.vance@sleepnumber.com  staff    224 Apr  6 07:37 terraform
+-rw-r--r--  1 rob.vance@sleepnumber.com  staff     43 Apr  6 07:49 typescript
+[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 api-gateway % [K[?2004hccd scripyt  t  pp ts[?2004l
+[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway/scripts[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 scripts % [K[?2004hlls -l[?2004l
+total 56
+-rwxr-xr-x@ 1 rob.vance@sleepnumber.com  staff  12583 Apr  6 07:43 kong-sync.sh
+-rwxr-xr-x@ 1 rob.vance@sleepnumber.com  staff   9930 Apr  6 07:42 setup-local.sh
+[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway/scripts[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 scripts % [K[?2004h../set  etup-local.sh[?2004l
+
+=============================================
+  API Gateway - Local Development Setup
+=============================================
+
+[0;34m[INFO][0m Checking prerequisites...
+[0;32m[OK][0m   docker found: /opt/homebrew/bin/docker
+[0;32m[OK][0m   docker found: /opt/homebrew/bin/docker
+[0;32m[OK][0m   docker compose v2 found
+[0;32m[OK][0m   terraform found: 1.12.2
+[0;32m[OK][0m   Docker daemon is running
+
+[0;34m[INFO][0m Configuring environment...
+[0;34m[INFO][0m Creating .env from .env.example...
+[0;34m[INFO][0m Generating local secrets...
+[0;32m[OK][0m   .env created with generated secrets
+
+[0;34m[INFO][0m Starting Docker Compose services...
+[0;34m[INFO][0m Building custom images...
+[1A[1B[0G[?25l[+] Building 0.0s (0/1)                                                         
+ => [internal] load local bake definitions                                 0.0s
+[?25h[1A[1A[0G[?25l[+] Building 0.1s (1/2)                                                         
+[34m => [internal] load local bake definitions                                 0.0s
+[0m[34m => => reading from stdin 1.70kB                                           0.0s
+[0m[?25h[1A[1A[1A[0G[?25l[+] Building 0.2s (4/4) FINISHED                                                
+[34m => [internal] load local bake definitions                                 0.0s
+[0m[34m => => reading from stdin 1.70kB                                           0.0s
+[0m[34m => [kong-migrations internal] load build definition from Dockerfile       0.0s
+[0m[34m => => transferring dockerfile: 8.79kB                                     0.0s
+[0m[34m => [admin-panel internal] load build definition from Dockerfile           0.0s
+[0m[34m => => transferring dockerfile: 1.16kB                                     0.0s
+[0m[33m => CANCELED [kong internal] load metadata for docker.io/library/kong:3.9  0.0s
+[0m[?25h[?25l[0G[+] build 0/3
+ [33m⠙[0m Image api-gateway-kong            Building                               [34m0.3s[0m
+ [33m⠙[0m Image api-gateway-kong-migrations Building                               [34m0.3s[0m
+ [33m⠙[0m Image api-gateway-admin-panel     Building                               [34m0.3s[0m
+[?25htarget admin-panel: failed to solve: target stage "development" could not be found
+
+
+
+View build details: docker-desktop://dashboard/build/default/default/mu90pdfql5wbwob4g99otwz2h
+
+[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway/scripts[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 scripts % [K[?2004h[7mbrew install localstack[27m[23D[27mb[27mr[27me[27mw[27m [27mi[27mn[27ms[27mt[27ma[27ml[27ml[27m [27ml[27mo[27mc[27ma[27ml[27ms[27mt[27ma[27mc[27mk[?2004l
+[34m==>[0m [1mAuto-updating Homebrew...[0m
+Adjust how often this is run with `$HOMEBREW_AUTO_UPDATE_SECS` or disable with
+`$HOMEBREW_NO_AUTO_UPDATE=1`. Hide these hints with `$HOMEBREW_NO_ENV_HINTS=1` (see `man brew`).
+[34m==>[0m [1mAuto-updated Homebrew![0m
+[34m==>[0m [1mUpdated Homebrew from 5.1.3 (8fbdcb73c8) to 5.1.4 (968378a218).[0m
+Updated 2 taps (homebrew/core and homebrew/cask).
+[34m==>[0m [1mNew Formulae[0m
+dartaotruntime: Command-line tool for running AOT-compiled snapshots of Dart code
+git-format-staged: Git command to transform staged files using a formatting command
+graalvm: JDK distribution with Graal compiler and Native Image
+libkiwix: Common code base for all Kiwix ports
+libpathrs: C-friendly API to make path resolution safer on Linux
+merve: C++ lexer for extracting named exports from CommonJS modules
+rustpython: Python Interpreter written in Rust
+rvvm: RISC-V Virtual Machine
+sarif-fmt: Pretty print SARIF files to easy human readable output
+t2sz: Compress a file into a seekable zstd with per-file seeking for tar archives
+tini: Tiny but valid init for containers
+yelp-xsl: Document transformations from Yelp
+[34m==>[0m [1mNew Casks[0m
+craft-agents: AI assistant for connecting and working across data sources
+font-ioskeley-mono
+font-strichpunkt-sans
+radial: Gesture-based launcher for apps, text snippets, and scripts
+remanager: Desktop app for managing mods on reMarkable tablets
+super: Analytics database that fuses structured and semi-structured data
+vibeproxy: Menu bar app for using AI subscriptions with coding tools
+
+You have [1m96[0m outdated formulae and [1m3[0m outdated casks installed.
+
+
+The 5.1.4 changelog can be found at:
+  [4mhttps://github.com/Homebrew/brew/releases/tag/5.1.4[24m
+[32m==>[0m [1mFetching downloads for: [32mlocalstack[39m[0m
+[?25l[34m⠋[0m Bottle Manifest localstack (2026.3.0_2)[K[0G[34m⠋[0m Bottle Manifest localstack (2026.3.0_2)[K[0G[34m⠙[0m Bottle Manifest localstack (2026.3.0_2)[K[0G[34m⠙[0m Bottle Manifest localstack (2026.3.0_2)[K[0G[34m⠚[0m Bottle Manifest localstack (2026.3.0_2)[K[0G[34m⠚[0m Bottle Manifest localstack (2026.3.0_2)            Downloading  26.1KB/-------[K[0G[32m✔︎[0m Bottle Manifest localstack (2026.3.0_2)            Downloaded   26.1KB/ 26.1KB
+[K[?25h[?25l[32m✔︎[0m Bottle Manifest ca-certificates (2026-03-19)       Downloaded    2.0KB/  2.0KB
+[K[32m✔︎[0m Bottle Manifest certifi (2026.2.25)                Downloaded    2.2KB/  2.2KB
+[K[32m✔︎[0m Bottle Manifest pycparser (3.0)                    Downloaded    2.0KB/  2.0KB
+[K[32m✔︎[0m Bottle Manifest cffi (2.0.0_1)                     Downloaded   10.5KB/ 10.5KB
+[K[34m⠞[0m Bottle ca-certificates (2026-03-19)                Extracting  132.4KB/132.4KB
+[K[34m⠞[0m Bottle certifi (2026.2.25)                         Extracting    5.7KB/  5.7KB
+[K[34m⠞[0m Bottle pycparser (3.0)                             Extracting  103.8KB/103.8KB
+[K[34m⠞[0m Bottle cffi (2.0.0_1)                        ##### Downloading 522.8KB/522.8KB
+[K[32m✔︎[0m Bottle Manifest cryptography (46.0.6)              Downloaded   11.7KB/ 11.7KB
+[K[34m⠞[0m Bottle cryptography (46.0.6)
+[K[34m⠞[0m Bottle Manifest sqlite (3.51.3)
+[K[34m⠞[0m Bottle sqlite (3.51.3)
+[K[34m⠞[0m Bottle Manifest python@3.14 (3.14.3_1)
+[K[34m⠞[0m Bottle Manifest xz (5.8.3)
+[K[34m⠞[0m Bottle xz (5.8.3)
+[K[34m⠞[0m Bottle python@3.14 (3.14.3_1)
+[K[34m⠞[0m Bottle localstack (2026.3.0_2)[K[12F[32m✔︎[0m Bottle ca-certificates (2026-03-19)                Downloaded  132.4KB/132.4KB
+[K[32m✔︎[0m Bottle certifi (2026.2.25)                         Downloaded    5.7KB/  5.7KB
+[K[32m✔︎[0m Bottle pycparser (3.0)                             Downloaded  103.8KB/103.8KB
+[K[32m✔︎[0m Bottle Manifest cryptography (46.0.6)              Downloaded   11.7KB/ 11.7KB
+[K[32m✔︎[0m Bottle Manifest sqlite (3.51.3)                    Downloaded   11.4KB/ 11.4KB
+[K[34m⠞[0m Bottle cffi (2.0.0_1)                              Extracting  522.8KB/522.8KB
+[K[34m⠞[0m Bottle cryptography (46.0.6)                       Downloading 274.4KB/  4.2MB
+[K[34m⠞[0m Bottle sqlite (3.51.3)                             Downloading  24.6KB/  2.4MB
+[K[34m⠞[0m Bottle Manifest python@3.14 (3.14.3_1)
+[K[34m⠞[0m Bottle Manifest xz (5.8.3)
+[K[34m⠞[0m Bottle xz (5.8.3)
+[K[34m⠞[0m Bottle python@3.14 (3.14.3_1)
+[K[34m⠞[0m Bottle localstack (2026.3.0_2)[K[7F[32m✔︎[0m Bottle cffi (2.0.0_1)                              Downloaded  522.8KB/522.8KB
+[K[34m⠖[0m Bottle cryptography (46.0.6)                 ##    Downloading   1.3MB/  4.2MB
+[K[34m⠖[0m Bottle sqlite (3.51.3)                       #     Downloading 434.2KB/  2.4MB
+[K[32m✔︎[0m Bottle Manifest python@3.14 (3.14.3_1)             Downloaded   29.5KB/ 29.5KB
+[K[34m⠖[0m Bottle Manifest xz (5.8.3)
+[K[34m⠖[0m Bottle xz (5.8.3)
+[K[34m⠖[0m Bottle python@3.14 (3.14.3_1)
+[K[34m⠖[0m Bottle localstack (2026.3.0_2)[K[6F[32m✔︎[0m Bottle Manifest python@3.14 (3.14.3_1)             Downloaded   29.5KB/ 29.5KB
+[K[32m✔︎[0m Bottle Manifest xz (5.8.3)                         Downloaded   11.8KB/ 11.8KB
+[K[34m⠖[0m Bottle cryptography (46.0.6)                 ##### Downloading   3.8MB/  4.2MB
+[K[34m⠖[0m Bottle sqlite (3.51.3)                       ####  Downloading   1.7MB/  2.4MB
+[K[34m⠖[0m Bottle xz (5.8.3)
+[K[34m⠖[0m Bottle python@3.14 (3.14.3_1)
+[K[34m⠖[0m Bottle localstack (2026.3.0_2)[K[4F[34m⠦[0m Bottle cryptography (46.0.6)                       Extracting    4.2MB/  4.2MB
+[K[34m⠦[0m Bottle sqlite (3.51.3)                             Extracting    2.4MB/  2.4MB
+[K[34m⠦[0m Bottle xz (5.8.3)                            ###   Downloading 536.6KB/770.8KB
+[K[34m⠦[0m Bottle python@3.14 (3.14.3_1)
+[K[34m⠦[0m Bottle localstack (2026.3.0_2)[K[4F[34m⠦[0m Bottle cryptography (46.0.6)                       Extracting    4.2MB/  4.2MB
+[K[34m⠦[0m Bottle sqlite (3.51.3)                             Extracting    2.4MB/  2.4MB
+[K[34m⠦[0m Bottle xz (5.8.3)                                  Extracting  770.8KB/770.8KB
+[K[34m⠦[0m Bottle python@3.14 (3.14.3_1)                      Downloading   1.1MB/ 19.1MB
+[K[34m⠦[0m Bottle localstack (2026.3.0_2)[K[4F[34m⠴[0m Bottle cryptography (46.0.6)                       Extracting    4.2MB/  4.2MB
+[K[34m⠴[0m Bottle sqlite (3.51.3)                             Extracting    2.4MB/  2.4MB
+[K[34m⠴[0m Bottle xz (5.8.3)                                  Extracting  770.8KB/770.8KB
+[K[34m⠴[0m Bottle python@3.14 (3.14.3_1)                #     Downloading   3.9MB/ 19.1MB
+[K[34m⠴[0m Bottle localstack (2026.3.0_2)[K[4F[34m⠴[0m Bottle cryptography (46.0.6)                       Extracting    4.2MB/  4.2MB
+[K[34m⠴[0m Bottle sqlite (3.51.3)                             Extracting    2.4MB/  2.4MB
+[K[34m⠴[0m Bottle xz (5.8.3)                                  Extracting  770.8KB/770.8KB
+[K[34m⠴[0m Bottle python@3.14 (3.14.3_1)                ##    Downloading   6.1MB/ 19.1MB
+[K[34m⠴[0m Bottle localstack (2026.3.0_2)               #     Downloading 397.3KB/  3.1MB[K[4F[34m⠲[0m Bottle cryptography (46.0.6)                       Extracting    4.2MB/  4.2MB
+[K[34m⠲[0m Bottle sqlite (3.51.3)                             Extracting    2.4MB/  2.4MB
+[K[34m⠲[0m Bottle xz (5.8.3)                                  Extracting  770.8KB/770.8KB
+[K[34m⠲[0m Bottle python@3.14 (3.14.3_1)                ##    Downloading   7.7MB/ 19.1MB
+[K[34m⠲[0m Bottle localstack (2026.3.0_2)               ####  Downloading   2.3MB/  3.1MB[K[4F[34m⠲[0m Bottle cryptography (46.0.6)                       Extracting    4.2MB/  4.2MB
+[K[34m⠲[0m Bottle sqlite (3.51.3)                             Extracting    2.4MB/  2.4MB
+[K[34m⠲[0m Bottle xz (5.8.3)                                  Extracting  770.8KB/770.8KB
+[K[34m⠲[0m Bottle python@3.14 (3.14.3_1)                ###   Downloading   9.6MB/ 19.1MB
+[K[34m⠲[0m Bottle localstack (2026.3.0_2)                     Extracting    3.1MB/  3.1MB[K[4F[32m✔︎[0m Bottle sqlite (3.51.3)                             Downloaded    2.4MB/  2.4MB
+[K[32m✔︎[0m Bottle xz (5.8.3)                                  Downloaded  770.8KB/770.8KB
+[K[34m⠳[0m Bottle cryptography (46.0.6)                       Extracting    4.2MB/  4.2MB
+[K[34m⠳[0m Bottle python@3.14 (3.14.3_1)                ###   Downloading  11.1MB/ 19.1MB
+[K[34m⠳[0m Bottle localstack (2026.3.0_2)                     Extracting    3.1MB/  3.1MB[K[2F[34m⠳[0m Bottle cryptography (46.0.6)                       Extracting    4.2MB/  4.2MB
+[K[34m⠳[0m Bottle python@3.14 (3.14.3_1)                ###   Downloading  12.9MB/ 19.1MB
+[K[34m⠳[0m Bottle localstack (2026.3.0_2)                     Extracting    3.1MB/  3.1MB[K[2F[34m⠓[0m Bottle cryptography (46.0.6)                       Extracting    4.2MB/  4.2MB
+[K[34m⠓[0m Bottle python@3.14 (3.14.3_1)                ####  Downloading  14.8MB/ 19.1MB
+[K[34m⠓[0m Bottle localstack (2026.3.0_2)                     Extracting    3.1MB/  3.1MB[K[2F[34m⠓[0m Bottle cryptography (46.0.6)                       Extracting    4.2MB/  4.2MB
+[K[34m⠓[0m Bottle python@3.14 (3.14.3_1)                ####  Downloading  17.0MB/ 19.1MB
+[K[34m⠓[0m Bottle localstack (2026.3.0_2)                     Extracting    3.1MB/  3.1MB[K[2F[32m✔︎[0m Bottle cryptography (46.0.6)                       Downloaded    4.2MB/  4.2MB
+[K[34m⠋[0m Bottle python@3.14 (3.14.3_1)                      Downloaded   19.1MB/ 19.1MB
+[K[34m⠋[0m Bottle localstack (2026.3.0_2)                     Extracting    3.1MB/  3.1MB[K[1F[34m⠋[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB
+[K[34m⠋[0m Bottle localstack (2026.3.0_2)                     Extracting    3.1MB/  3.1MB[K[1F[34m⠙[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB
+[K[34m⠙[0m Bottle localstack (2026.3.0_2)                     Extracting    3.1MB/  3.1MB[K[1F[32m✔︎[0m Bottle localstack (2026.3.0_2)                     Downloaded    3.1MB/  3.1MB
+[K[34m⠙[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠚[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠚[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠞[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠞[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠖[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠖[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠦[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠦[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠴[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠴[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠲[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠲[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠳[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠳[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠓[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠓[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠋[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠋[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠙[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠙[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠚[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠚[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠞[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠞[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠖[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠖[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠦[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠦[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠴[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠴[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠲[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠲[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠳[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠳[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠓[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠓[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠋[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[34m⠋[0m Bottle python@3.14 (3.14.3_1)                      Extracting   19.1MB/ 19.1MB[K[0G[32m✔︎[0m Bottle python@3.14 (3.14.3_1)                      Downloaded   19.1MB/ 19.1MB
+[K[?25h[32m==>[0m [1mInstalling dependencies for localstack: [32mca-certificates[39m, [32mcertifi[39m, [32mpycparser[39m, [32mcffi[39m, [32mcryptography[39m, [32msqlite[39m and [32mpython@3.14[39m[0m
+[32m==>[0m [1mInstalling localstack dependency: [32mca-certificates[39m[0m
+[34m==>[0m [1mPouring ca-certificates--2026-03-19.all.bottle.tar.gz[0m
+[34m==>[0m [1mRegenerating CA certificate bundle from keychain, this may take a while...[0m
+🍺  /opt/homebrew/Cellar/ca-certificates/2026-03-19: 4 files, 237.5KB
+[32m==>[0m [1mInstalling localstack dependency: [32mcertifi[39m[0m
+[34m==>[0m [1mPouring certifi--2026.2.25.all.bottle.tar.gz[0m
+🍺  /opt/homebrew/Cellar/certifi/2026.2.25: 38 files, 20.6KB
+[32m==>[0m [1mInstalling localstack dependency: [32mpycparser[39m[0m
+[34m==>[0m [1mPouring pycparser--3.0.all.bottle.tar.gz[0m
+[31mError:[0m The `brew link` step did not complete successfully
+The formula built, but is not symlinked into /opt/homebrew
+Could not symlink lib/python3.14/site-packages/pycparser/__init__.py
+Target /opt/homebrew/lib/python3.14/site-packages/pycparser/__init__.py
+already exists. You may want to remove it:
+  rm '/opt/homebrew/lib/python3.14/site-packages/pycparser/__init__.py'
+
+To force the link and overwrite all conflicting files:
+  brew link --overwrite pycparser
+
+To list all files that would be deleted:
+  brew link --overwrite pycparser --dry-run
+
+Possible conflicting files are:
+/opt/homebrew/lib/python3.14/site-packages/pycparser/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/pycparser/_ast_gen.py
+/opt/homebrew/lib/python3.14/site-packages/pycparser/_c_ast.cfg
+/opt/homebrew/lib/python3.14/site-packages/pycparser/ast_transforms.py
+/opt/homebrew/lib/python3.14/site-packages/pycparser/c_ast.py
+/opt/homebrew/lib/python3.14/site-packages/pycparser/c_generator.py
+/opt/homebrew/lib/python3.14/site-packages/pycparser/c_lexer.py
+/opt/homebrew/lib/python3.14/site-packages/pycparser/c_parser.py
+/opt/homebrew/lib/python3.14/site-packages/pycparser-3.0.dist-info/INSTALLER
+/opt/homebrew/lib/python3.14/site-packages/pycparser-3.0.dist-info/METADATA
+/opt/homebrew/lib/python3.14/site-packages/pycparser-3.0.dist-info/WHEEL
+/opt/homebrew/lib/python3.14/site-packages/pycparser-3.0.dist-info/licenses/LICENSE
+/opt/homebrew/lib/python3.14/site-packages/pycparser-3.0.dist-info/top_level.txt
+[34m==>[0m [1mSummary[0m
+🍺  /opt/homebrew/Cellar/pycparser/3.0: 53 files, 466.2KB
+[32m==>[0m [1mInstalling localstack dependency: [32mcffi[39m[0m
+[34m==>[0m [1mPouring cffi--2.0.0_1.arm64_tahoe.bottle.tar.gz[0m
+[31mError:[0m The `brew link` step did not complete successfully
+The formula built, but is not symlinked into /opt/homebrew
+Could not symlink lib/python3.14/site-packages/_cffi_backend.cpython-314-darwin.so
+Target /opt/homebrew/lib/python3.14/site-packages/_cffi_backend.cpython-314-darwin.so
+already exists. You may want to remove it:
+  rm '/opt/homebrew/lib/python3.14/site-packages/_cffi_backend.cpython-314-darwin.so'
+
+To force the link and overwrite all conflicting files:
+  brew link --overwrite cffi
+
+To list all files that would be deleted:
+  brew link --overwrite cffi --dry-run
+
+Possible conflicting files are:
+/opt/homebrew/lib/python3.14/site-packages/_cffi_backend.cpython-314-darwin.so
+/opt/homebrew/lib/python3.14/site-packages/cffi/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/_cffi_errors.h
+/opt/homebrew/lib/python3.14/site-packages/cffi/_cffi_include.h
+/opt/homebrew/lib/python3.14/site-packages/cffi/_embedding.h
+/opt/homebrew/lib/python3.14/site-packages/cffi/_imp_emulation.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/_shimmed_dist_utils.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/api.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/backend_ctypes.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/cffi_opcode.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/commontypes.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/cparser.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/error.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/ffiplatform.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/lock.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/model.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/parse_c_type.h
+/opt/homebrew/lib/python3.14/site-packages/cffi/pkgconfig.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/recompiler.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/setuptools_ext.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/vengine_cpy.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/vengine_gen.py
+/opt/homebrew/lib/python3.14/site-packages/cffi/verifier.py
+/opt/homebrew/lib/python3.14/site-packages/cffi-2.0.0.dist-info/INSTALLER
+/opt/homebrew/lib/python3.14/site-packages/cffi-2.0.0.dist-info/METADATA
+/opt/homebrew/lib/python3.14/site-packages/cffi-2.0.0.dist-info/WHEEL
+/opt/homebrew/lib/python3.14/site-packages/cffi-2.0.0.dist-info/entry_points.txt
+/opt/homebrew/lib/python3.14/site-packages/cffi-2.0.0.dist-info/licenses/AUTHORS
+/opt/homebrew/lib/python3.14/site-packages/cffi-2.0.0.dist-info/licenses/LICENSE
+/opt/homebrew/lib/python3.14/site-packages/cffi-2.0.0.dist-info/top_level.txt
+[34m==>[0m [1mSummary[0m
+🍺  /opt/homebrew/Cellar/cffi/2.0.0_1: 99 files, 1.8MB
+[32m==>[0m [1mInstalling localstack dependency: [32mcryptography[39m[0m
+[34m==>[0m [1mPouring cryptography--46.0.6.arm64_tahoe.bottle.tar.gz[0m
+[31mError:[0m The `brew link` step did not complete successfully
+The formula built, but is not symlinked into /opt/homebrew
+Could not symlink lib/python3.14/site-packages/cryptography/__about__.py
+Target /opt/homebrew/lib/python3.14/site-packages/cryptography/__about__.py
+already exists. You may want to remove it:
+  rm '/opt/homebrew/lib/python3.14/site-packages/cryptography/__about__.py'
+
+To force the link and overwrite all conflicting files:
+  brew link --overwrite cryptography
+
+To list all files that would be deleted:
+  brew link --overwrite cryptography --dry-run
+
+Possible conflicting files are:
+/opt/homebrew/lib/python3.14/site-packages/cryptography/__about__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/exceptions.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/fernet.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/_oid.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/asn1/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/asn1/asn1.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/backends/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/backends/openssl/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/backends/openssl/backend.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/__init__.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/_openssl.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/asn1.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/declarative_asn1.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/exceptions.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/ocsp.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/__init__.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/aead.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/ciphers.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/cmac.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/dh.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/dsa.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/ec.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/ed25519.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/ed448.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/hashes.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/hmac.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/kdf.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/keys.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/poly1305.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/rsa.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/x25519.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/openssl/x448.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/pkcs12.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/pkcs7.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/test_support.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust/x509.pyi
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/_rust.abi3.so
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/openssl/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/openssl/_conditional.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/bindings/openssl/binding.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/decrepit/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/decrepit/ciphers/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/decrepit/ciphers/algorithms.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/_asymmetric.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/_cipheralgorithm.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/_serialization.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/asymmetric/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/asymmetric/dh.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/asymmetric/dsa.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/asymmetric/ec.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/asymmetric/ed25519.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/asymmetric/ed448.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/asymmetric/padding.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/asymmetric/rsa.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/asymmetric/types.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/asymmetric/utils.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/asymmetric/x25519.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/asymmetric/x448.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/ciphers/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/ciphers/aead.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/ciphers/algorithms.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/ciphers/base.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/ciphers/modes.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/cmac.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/constant_time.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/hashes.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/hmac.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/kdf/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/kdf/argon2.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/kdf/concatkdf.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/kdf/hkdf.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/kdf/kbkdf.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/kdf/pbkdf2.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/kdf/scrypt.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/kdf/x963kdf.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/keywrap.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/padding.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/poly1305.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/serialization/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/serialization/base.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/serialization/pkcs12.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/serialization/pkcs7.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/serialization/ssh.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/twofactor/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/twofactor/hotp.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/hazmat/primitives/twofactor/totp.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/py.typed
+/opt/homebrew/lib/python3.14/site-packages/cryptography/utils.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/x509/__init__.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/x509/base.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/x509/certificate_transparency.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/x509/extensions.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/x509/general_name.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/x509/name.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/x509/ocsp.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/x509/oid.py
+/opt/homebrew/lib/python3.14/site-packages/cryptography/x509/verification.py
+[34m==>[0m [1mSummary[0m
+🍺  /opt/homebrew/Cellar/cryptography/46.0.6: 630 files, 15.6MB
+[32m==>[0m [1mInstalling localstack dependency: [32msqlite[39m[0m
+[34m==>[0m [1mPouring sqlite--3.51.3.arm64_tahoe.bottle.tar.gz[0m
+🍺  /opt/homebrew/Cellar/sqlite/3.51.3: 13 files, 5.2MB
+[32m==>[0m [1mInstalling localstack dependency: [32mpython@3.14[39m[0m
+[34m==>[0m [1mPouring python@3.14--3.14.3_1.arm64_tahoe.bottle.tar.gz[0m
+🍺  /opt/homebrew/Cellar/python@3.14/3.14.3_1: 3,764 files, 75.3MB
+[32m==>[0m [1mInstalling [32mlocalstack[39m[0m
+[34m==>[0m [1mPouring localstack--2026.3.0_2.arm64_tahoe.bottle.tar.gz[0m
+🍺  /opt/homebrew/Cellar/localstack/2026.3.0_2: 1,290 files, 13.1MB
+[34m==>[0m [1mRunning `brew cleanup localstack`...[0m
+Disable this behaviour by setting `HOMEBREW_NO_INSTALL_CLEANUP=1`.
+Hide these hints with `HOMEBREW_NO_ENV_HINTS=1` (see `man brew`).
+[32m==>[0m [1mCaveats[0m
+zsh completions have been installed to:
+  /opt/homebrew/share/zsh/site-functions
+[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway/scripts[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 scripts % [K[?2004hllocalstat ck run[?2004l
+Usage: localstack [OPTIONS] COMMAND [ARGS]...
+Try 'localstack -h' for help.
+
+Error: No such command 'run'.
+[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway/scripts[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 scripts % [K[?2004hlocalstack run   start[?2004l
+
+     __                     _______ __             __
+    / /   ____  _________ _/ / ___// /_____ ______/ /__
+   / /   / __ \/ ___/ __ `/ /\__ \/ __/ __ `/ ___/ //_/
+  / /___/ /_/ / /__/ /_/ / /___/ / /_/ /_/ / /__/ ,<
+ /_____/\____/\___/\__,_/_//____/\__/\__,_/\___/_/|_|
+
+- [1mLocalStack CLI:[0m [1;34m2026.3[0m[34m.[0m[1;34m0[0m
+- [1mProfile:[0m [34mdefault[0m
+- [1mApp:[0m [4;94mhttps://app.localstack.cloud[0m
+
+[2;36m[07:57:58][0m[2;36m [0mstarting LocalStack in Docker mode 🐳               ]8;id=882186;file:///opt/homebrew/Cellar/localstack/2026.3.0_2/libexec/lib/python3.14/site-packages/localstack_cli/cli/localstack.py\[2mlocalstack.py[0m]8;;\[2m:[0m]8;id=425212;file:///opt/homebrew/Cellar/localstack/2026.3.0_2/libexec/lib/python3.14/site-packages/localstack_cli/cli/localstack.py#532\[2m532[0m]8;;\
+2026-04-06T07:58:00.008  INFO --- [  MainThread] l.utils.bootstrap          : Execution of "prepare_host" took 1626.60ms
+[31m❌ Error: 
+===============================================
+License activation failed! 🔑❌
+
+Reason: No credentials were found in the environment. Please make sure to either set the LOCALSTACK_AUTH_TOKEN variable to a valid auth token. If you are using the CLI, you can also run `localstack auth set-token`.
+
+Due to this error, Localstack has quit. LocalStack pro features can only be used with a valid license.
+
+- Please check that your credentials are set up correctly and that you have an active license.
+  You can find your credentials in our webapp at https://app.localstack.cloud.
+- If you want to continue using LocalStack without pro features, set `LOCALSTACK_ACKNOWLEDGE_ACCOUNT_REQUIREMENT=1` during the grace period.
+[0m
+[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway/scripts[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 scripts % [K[?2004hlls -l[?2004l
+total 56
+-rwxr-xr-x@ 1 rob.vance@sleepnumber.com  staff  12583 Apr  6 07:43 kong-sync.sh
+-rwxr-xr-x@ 1 rob.vance@sleepnumber.com  staff   9930 Apr  6 07:42 setup-local.sh
+[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway/scripts[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 scripts % [K[?2004hvvi .env[?2004l
+[?1049h[>4;2m[?1h=[?2004h[?1004h[1;24r[?12h[?12l[22;2t[22;1t[27m[23m[29m[m[H[2J[?25l[24;1H".env" [New][2;1H▽[6n[2;1H  [3;1HPzz\[0%m[6n[3;1H           [1;1H[>c]11;?]10;?[2;1H[94m~                                                                               [3;1H~                                                                               [4;1H~                                                                               [5;1H~                                                                               [6;1H~                                                                               [7;1H~                                                                               [8;1H~                                                                               [9;1H~                                                                               [10;1H~                                                                               [11;1H~                                                                               [12;1H~                                                                               [13;1H~                                                                               [14;1H~                                                                               [15;1H~                                                                               [16;1H~                                                                               [17;1H~                                                                               [18;1H~                                                                               [19;1H~                                                                               [20;1H~                                                                               [21;1H~                                                                               [22;1H~                                                                               [23;1H~                                                                               [1;1H[?25h[?4m[?25l[m[24;1H[1m-- INSERT --[27m[23m[29m[m[H[2J[1;1Hls-DEmU1549-FeSA-DUZe-3740-gIFegOco70c4
+[94m~                                                                               [3;1H~                                                                               [4;1H~                                                                               [5;1H~                                                                               [6;1H~                                                                               [7;1H~                                                                               [8;1H~                                                                               [9;1H~                                                                               [10;1H~                                                                               [11;1H~                                                                               [12;1H~                                                                               [13;1H~                                                                               [14;1H~                                                                               [15;1H~                                                                               [16;1H~                                                                               [17;1H~                                                                               [18;1H~                                                                               [19;1H~                                                                               [20;1H~                                                                               [21;1H~                                                                               [22;1H~                                                                               [23;1H~                                                                               [m[24;1H[1m-- INSERT (paste) --[1;40H[?25h[?25l[m[24;1H[K[1;39H[?25h[?25l[24;70H~@k[1;39H[24;70H   [1;38H[?25h[?25l[24;70H~@k[1;38H[24;70H   [1;37H[?25h[?25l[24;70H~@k[1;37H[24;70H   [1;36H[?25h[?25l[24;70H~@k[1;36H[24;70H   [1;35H[?25h[?25l[24;70H~@k[1;35H[24;70H   [1;34H[?25h[?25l[24;70H~@k[1;34H[24;70H   [1;33H[?25h[?25l[24;70H~@k[1;33H[24;70H   [1;32H[?25h[?25l[24;70H~@k[1;32H[24;70H   [1;31H[?25h[?25l[24;70H~@k[1;31H[24;70H   [1;30H[?25h[?25l[24;70H~@k[1;30H[24;70H   [1;29H[?25h[?25l[24;70H~@k[1;29H[24;70H   [1;28H[?25h[?25l[24;70H~@k[1;28H[24;70H   [1;27H[?25h[?25l[24;70H~@k[1;27H[24;70H   [1;26H[?25h[?25l[24;70H~@k[1;26H[24;70H   [1;25H[?25h[?25l[24;70H~@k[1;25H[24;70H   [1;24H[?25h[?25l[24;70H~@k[1;24H[24;70H   [1;23H[?25h[?25l[24;70H~@k[1;23H[24;70H   [1;22H[?25h[?25l[24;70H~@k[1;22H[24;70H   [1;21H[?25h[?25l[24;70H~@k[1;21H[24;70H   [1;20H[?25h[?25l[24;70H~@k[1;20H[24;70H   [1;19H[?25h[?25l[24;70H~@k[1;19H[24;70H   [1;18H[?25h[?25l[24;70H~@k[1;18H[24;70H   [1;17H[?25h[?25l[24;70H~@k[1;17H[24;70H   [1;16H[?25h[?25l[24;70H~@k[1;16H[24;70H   [1;15H[?25h[?25l[24;70H~@k[1;15H[24;70H   [1;14H[?25h[?25l[24;70H~@k[1;14H[24;70H   [1;13H[?25h[?25l[24;70H~@k[1;13H[24;70H   [1;12H[?25h[?25l[24;70H~@k[1;12H[24;70H   [1;11H[?25h[?25l[24;70H~@k[1;11H[24;70H   [1;10H[?25h[?25l[24;70H~@k[1;10H[24;70H   [1;9H[?25h[?25l[24;70H~@k[1;9H[24;70H   [1;8H[?25h[?25l[24;70H~@k[1;8H[24;70H   [1;7H[?25h[?25l[24;70H~@k[1;7H[24;70H   [1;6H[?25h[?25l[24;70H~@k[1;6H[24;70H   [1;5H[?25h[?25l[24;70H~@k[1;5H[24;70H   [1;4H[?25h[?25l[24;70H~@k[1;4H[24;70H   [1;3H[?25h[?25l[24;70H~@k[1;3H[24;70H   [1;2H[?25h[?25l[24;70H~@k[1;2H[24;70H   [1;1H[?25h[?25l[24;1H[1m-- INSERT --[1;1H[?25h[?25l[mLOCALSTACK_AUTH_TOKEN ls-DEmU1549-FeSA-DUZe-3740-gIFegOco70c4[1;23H[?25h[?25l[24;1H[K[1;22H[?25h[?25l[24;70H=[1;22H[?25h[?25l[24;71Hi[1;22H[?25h[?25l[24;72H-[1;22H[24;70H   [1;22H[?25h[?25l[24;70Hi[1;22H[24;70H [1;22H[24;1H[1m-- INSERT --[1;22H[?25h[?25l[m- ls-DEmU1549-FeSA-DUZe-3740-gIFegOco70c4[1;23H[?25h[?25l ls-DEmU1549-FeSA-DUZe-3740-gIFegOco70c4[1;62H[K[1;22H[?25h[?25l= ls-DEmU1549-FeSA-DUZe-3740-gIFegOco70c4[1;23H[?25h [?25lls-DEmU1549-FeSA-DUZe-3740-gIFegOco70c4[1;62H[K[1;23H[?25h[?25l'ls-DEmU1549-FeSA-DUZe-3740-gIFegOco70c4[1;24H[?25hls-DEmU1549-FeSA-DUZe-3740-gIFegOco70c4[?25l'[?25h[24;1H[K[1;63H[?25l[24;70H^[[1;63H[?25h[?25l[24;70H  [1;64H[?25h[?25l[24;70H:[1;63H[24;70H[K[24;1H:[?25hwq[?25l[?2004l[>4;m".env" [New] 1L, 64B written[23;2t[23;1t
+[?1004l[?2004l[?1l>[?1049l[?25h[>4;m[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway/scripts[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 scripts % [K[?2004hllocalstat star     ck start[?2004l
+
+     __                     _______ __             __
+    / /   ____  _________ _/ / ___// /_____ ______/ /__
+   / /   / __ \/ ___/ __ `/ /\__ \/ __/ __ `/ ___/ //_/
+  / /___/ /_/ / /__/ /_/ / /___/ / /_/ /_/ / /__/ ,<
+ /_____/\____/\___/\__,_/_//____/\__/\__,_/\___/_/|_|
+
+- [1mLocalStack CLI:[0m [1;34m2026.3[0m[34m.[0m[1;34m0[0m
+- [1mProfile:[0m [34mdefault[0m
+- [1mApp:[0m [4;94mhttps://app.localstack.cloud[0m
+
+[2;36m[07:59:17][0m[2;36m [0mstarting LocalStack in Docker mode 🐳               ]8;id=953331;file:///opt/homebrew/Cellar/localstack/2026.3.0_2/libexec/lib/python3.14/site-packages/localstack_cli/cli/localstack.py\[2mlocalstack.py[0m]8;;\[2m:[0m]8;id=131612;file:///opt/homebrew/Cellar/localstack/2026.3.0_2/libexec/lib/python3.14/site-packages/localstack_cli/cli/localstack.py#532\[2m532[0m]8;;\
+2026-04-06T07:59:19.146  INFO --- [  MainThread] l.utils.bootstrap          : Execution of "prepare_host" took 1443.47ms
+[31m❌ Error: 
+===============================================
+License activation failed! 🔑❌
+
+Reason: No credentials were found in the environment. Please make sure to either set the LOCALSTACK_AUTH_TOKEN variable to a valid auth token. If you are using the CLI, you can also run `localstack auth set-token`.
+
+Due to this error, Localstack has quit. LocalStack pro features can only be used with a valid license.
+
+- Please check that your credentials are set up correctly and that you have an active license.
+  You can find your credentials in our webapp at https://app.localstack.cloud.
+- If you want to continue using LocalStack without pro features, set `LOCALSTACK_ACKNOWLEDGE_ACCOUNT_REQUIREMENT=1` during the grace period.
+[0m
+[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway/scripts[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 scripts % [K[?2004hllocalstat ck auth set-token[?2004l
+Usage: localstack auth set-token [OPTIONS] AUTH_TOKEN
+Try 'localstack auth set-token -h' for help.
+
+Error: Missing argument 'AUTH_TOKEN'.
+[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway/scripts[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 scripts % [K[?2004hlocalstack auth set-token [7mls-DE[7mm[7mU1549-FeSA-DUZe-3740-gIFegOco70c4[27m[K[A[41C[27ml[27ms[27m-[27mD[27mEm[27mU[27m1[27m5[27m4[27m9[27m-[27mF[27me[27mS[27mA[27m-[27mD[27mU[27mZ[27me[27m-[27m3[27m7[27m4[27m0[27m-[27mg[27mI[27mF[27me[27mg[27mO[27mc[27mo[27m7[27m0[27mc[27m4[?2004l
+Token configured successfully
+[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway/scripts[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 scripts % [K[?2004hlocalstack auth set-token ls-DEmU1549-FeSA-DUZe-3740-gIFegOco70c4[K[A[41C[K[1B[K[A[74C[14Dstart         [9D[16Dvi .env         [9Dls -l  localstack start[?2004l[1B
+     __                     _______ __             __
+    / /   ____  _________ _/ / ___// /_____ ______/ /__
+   / /   / __ \/ ___/ __ `/ /\__ \/ __/ __ `/ ___/ //_/
+  / /___/ /_/ / /__/ /_/ / /___/ / /_/ /_/ / /__/ ,<
+ /_____/\____/\___/\__,_/_//____/\__/\__,_/\___/_/|_|
+
+- [1mLocalStack CLI:[0m [1;34m2026.3[0m[34m.[0m[1;34m0[0m
+- [1mProfile:[0m [34mdefault[0m
+- [1mApp:[0m [4;94mhttps://app.localstack.cloud[0m
+
+[2;36m[08:00:06][0m[2;36m [0mstarting LocalStack in Docker mode 🐳               ]8;id=994357;file:///opt/homebrew/Cellar/localstack/2026.3.0_2/libexec/lib/python3.14/site-packages/localstack_cli/cli/localstack.py\[2mlocalstack.py[0m]8;;\[2m:[0m]8;id=582170;file:///opt/homebrew/Cellar/localstack/2026.3.0_2/libexec/lib/python3.14/site-packages/localstack_cli/cli/localstack.py#532\[2m532[0m]8;;\
+2026-04-06T08:00:09.106  INFO --- [  MainThread] l.p.c.b.licensingv2        : Successfully requested and activated new license 1d7a43e7-7a23-48c8-93be-ed37eedbe261:trial 🔑✅
+2026-04-06T08:00:09.109  INFO --- [  MainThread] l.utils.bootstrap          : Execution of "prepare_host" took 3005.77ms
+[2;36m[08:00:09][0m[2;36m [0mcontainer image not found on host                   ]8;id=630999;file:///opt/homebrew/Cellar/localstack/2026.3.0_2/libexec/lib/python3.14/site-packages/localstack_cli/utils/bootstrap.py\[2mbootstrap.py[0m]8;;\[2m:[0m]8;id=886227;file:///opt/homebrew/Cellar/localstack/2026.3.0_2/libexec/lib/python3.14/site-packages/localstack_cli/utils/bootstrap.py#1321\[2m1321[0m]8;;\
+[?25l[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠴[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠹[0m Pulling container image localstack/localstack-pro[2K[32m⠸[0m Pulling container image localstack/localstack-pro[2K[32m⠼[0m Pulling container image localstack/localstack-pro[2K[32m⠦[0m Pulling container image localstack/localstack-pro[2K[32m⠧[0m Pulling container image localstack/localstack-pro[2K[32m⠇[0m Pulling container image localstack/localstack-pro[2K[32m⠏[0m Pulling container image localstack/localstack-pro[2K[32m⠋[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro[2K[2;36m[08:00:30][0m[2;36m [0mdownload complete                                   ]8;id=93912;file:///opt/homebrew/Cellar/localstack/2026.3.0_2/libexec/lib/python3.14/site-packages/localstack_cli/utils/bootstrap.py\[2mbootstrap.py[0m]8;;\[2m:[0m]8;id=540203;file:///opt/homebrew/Cellar/localstack/2026.3.0_2/libexec/lib/python3.14/site-packages/localstack_cli/utils/bootstrap.py#1325\[2m1325[0m]8;;\
+[32m⠙[0m Pulling container image localstack/localstack-pro[2K[32m⠙[0m Pulling container image localstack/localstack-pro
+[?25h[1A[2K[?25l[32m⠋[0m Starting LocalStack container[2K[32m⠙[0m Starting LocalStack container[2K[32m⠹[0m Starting LocalStack container[2K[32m⠸[0m Starting LocalStack container[2K[32m⠼[0m Starting LocalStack container[2K[32m⠴[0m Starting LocalStack container[2K[32m⠦[0m Starting LocalStack container[2K[32m⠧[0m Starting LocalStack container[2K[32m⠇[0m Starting LocalStack container[2K[32m⠏[0m Starting LocalStack container[2K[32m⠋[0m Starting LocalStack container[2K[32m⠙[0m Starting LocalStack container[2K[32m⠹[0m Starting LocalStack container[2K[32m⠸[0m Starting LocalStack container[2K[32m⠼[0m Starting LocalStack container[2K[32m⠴[0m Starting LocalStack container[2K[32m⠦[0m Starting LocalStack container[2K[32m⠧[0m Starting LocalStack container[2K[32m⠇[0m Starting LocalStack container[2K[32m⠏[0m Starting LocalStack container[2K[32m⠋[0m Starting LocalStack container[2K[32m⠙[0m Starting LocalStack container[2K[32m⠸[0m Starting LocalStack container[2K[32m⠼[0m Starting LocalStack container[2K[32m⠴[0m Starting LocalStack container[2K[32m⠦[0m Starting LocalStack container[2K[32m⠧[0m Starting LocalStack container[2K[32m⠇[0m Starting LocalStack container[2K[32m⠏[0m Starting LocalStack container[2K[32m⠋[0m Starting LocalStack container[2K[32m⠙[0m Starting LocalStack container[2K[32m⠹[0m Starting LocalStack container[2K[32m⠸[0m Starting LocalStack container[2K[32m⠼[0m Starting LocalStack container[2K[32m⠴[0m Starting LocalStack container[2K[32m⠦[0m Starting LocalStack container[2K[32m⠧[0m Starting LocalStack container[2K[32m⠇[0m Starting LocalStack container[2K[32m⠏[0m Starting LocalStack container2026-04-06T08:00:33.895 ERROR --- [-functhread1] l.utils.bootstrap          : Error while starting LocalStack container: Docker process returned with errorcode 1
+Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error mounting "/host_mnt/Users/rob.vance@sleepnumber.com/Library/Caches/localstack-cli/machine.json" to rootfs at "/var/lib/localstack/cache/machine.json": create mountpoint for /var/lib/localstack/cache/machine.json mount: mountpoint "/run/host_virtiofs/Users/rob.vance@sleepnumber.com/Library/Caches/localstack/volume/cache/machine.json" is outside of rootfs "/var/lib/docker/rootfs/overlayfs/9cf2032fe46fef714b3770a423d5d03b6f4ae246f8dea06ef1c6d9ab3d0fc06b"
+failed to start containers: 9cf2032fe46fef714b3770a423d5d03b6f4ae246f8dea06ef1c6d9ab3d0fc06b
+
+[31m❌ Error: Docker process returned with errorcode 1[0m
+[2K[32m⠋[0m Starting LocalStack container[1m[7m%[27m[1m[0m                                                                                ]7;file://USFFHG6X7JH4/Users/rob.vance%40sleepnumber.com/Documents/GitHub/api-gateway/scripts[0m[27m[24m[Jrob.vance@sleepnumber.com@USFFHG6X7JH4 scripts % [K[?2004hlocalstack start[?2004l
+
+     __                     _______ __             __
+    / /   ____  _________ _/ / ___// /_____ ______/ /__
+   / /   / __ \/ ___/ __ `/ /\__ \/ __/ __ `/ ___/ //_/
+  / /___/ /_/ / /__/ /_/ / /___/ / /_/ /_/ / /__/ ,<
+ /_____/\____/\___/\__,_/_//____/\__/\__,_/\___/_/|_|
+
+- [1mLocalStack CLI:[0m [1;34m2026.3[0m[34m.[0m[1;34m0[0m
+- [1mProfile:[0m [34mdefault[0m
+- [1mApp:[0m [4;94mhttps://app.localstack.cloud[0m
+
+[2;36m[09:04:31][0m[2;36m [0mstarting LocalStack in Docker mode 🐳               ]8;id=52621;file:///opt/homebrew/Cellar/localstack/2026.3.0_2/libexec/lib/python3.14/site-packages/localstack_cli/cli/localstack.py\[2mlocalstack.py[0m]8;;\[2m:[0m]8;id=460032;file:///opt/homebrew/Cellar/localstack/2026.3.0_2/libexec/lib/python3.14/site-packages/localstack_cli/cli/localstack.py#532\[2m532[0m]8;;\
+2026-04-06T09:04:31.485  INFO --- [  MainThread] l.p.c.b.licensingv2        : Successfully activated cached license 1d7a43e7-7a23-48c8-93be-ed37eedbe261:trial from /Users/rob.vance@sleepnumber.com/Library/Caches/localstack-cli/license.json 🔑✅
+[?25l[32m⠋[0m Starting LocalStack container[2K[32m⠙[0m Starting LocalStack container[2K[32m⠹[0m Starting LocalStack container[2K[32m⠸[0m Starting LocalStack container[2K[32m⠼[0m Starting LocalStack container[2K[32m⠴[0m Starting LocalStack container[2K[32m⠦[0m Starting LocalStack container[2K[32m⠧[0m Starting LocalStack container[2K[32m⠇[0m Starting LocalStack container[2K[32m⠏[0m Starting LocalStack container[2K[32m⠋[0m Starting LocalStack container[2K[32m⠙[0m Starting LocalStack container[2K[32m⠹[0m Starting LocalStack container[2K[32m⠸[0m Starting LocalStack container[2K[32m⠼[0m Starting LocalStack container[2K[32m⠼[0m Starting LocalStack container
+[?25h[1A[2K[92m──────────────── [0mLocalStack Runtime Log [1m([0mpress [1;33mCTRL-C[0m to quit[1m)[0m[92m ─────────────────[0m
+
+LocalStack version: 2026.3.1.dev116
+LocalStack build date: 2026-04-03
+LocalStack build git hash: 5c1431745
+
+2026-04-06T14:04:34.507  INFO --- [  MainThread] l.p.c.b.licensingv2        : Successfully activated cached license 1d7a43e7-7a23-48c8-93be-ed37eedbe261:trial from /etc/localstack/conf.d/license.json 🔑✅
+2026-04-06T14:04:35.143  INFO --- [  MainThread] l.p.c.extensions.plugins   : loaded 0 extensions
+Ready.

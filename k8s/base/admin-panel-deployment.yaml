@@ -1,0 +1,170 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-panel
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: admin-panel
+    app.kubernetes.io/component: ui
+    app.kubernetes.io/part-of: api-gateway
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-panel
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: admin-panel
+    app.kubernetes.io/component: ui
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: admin-panel
+      app.kubernetes.io/component: ui
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: admin-panel
+        app.kubernetes.io/component: ui
+        app.kubernetes.io/part-of: api-gateway
+    spec:
+      serviceAccountName: admin-panel
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - admin-panel
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: admin-panel
+          image: api-gateway/admin-panel:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: KONG_ADMIN_URL
+              value: "http://kong-admin.api-gateway.svc.cluster.local:8001"
+            - name: DATABASE_HOST
+              value: "postgresql.api-gateway.svc.cluster.local"
+            - name: DATABASE_PORT
+              value: "5432"
+            - name: DATABASE_NAME
+              value: "admin_panel"
+            - name: REDIS_HOST
+              value: "redis.api-gateway.svc.cluster.local"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: OIDC_ISSUER
+              value: "https://login.microsoftonline.com/{tenant-id}/v2.0"
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: admin-panel-secrets
+                  key: OIDC_CLIENT_ID
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: admin-panel-secrets
+                  key: OIDC_CLIENT_SECRET
+            - name: OIDC_REDIRECT_URI
+              value: "https://api-gateway.example.com/admin/callback"
+            - name: OIDC_SCOPES
+              value: "openid profile email"
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: admin-panel-secrets
+                  key: SESSION_SECRET
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: admin-panel-secrets
+                  key: DATABASE_PASSWORD
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: admin-panel-secrets
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: admin-panel
+    app.kubernetes.io/component: config
+    app.kubernetes.io/part-of: api-gateway
+  annotations:
+    description: "Populate values via CI/CD pipeline or external secrets operator"
+type: Opaque
+stringData:
+  OIDC_CLIENT_ID: "REPLACE_VIA_CI_CD"
+  OIDC_CLIENT_SECRET: "REPLACE_VIA_CI_CD"
+  SESSION_SECRET: "REPLACE_VIA_CI_CD"
+  DATABASE_PASSWORD: "REPLACE_VIA_CI_CD"

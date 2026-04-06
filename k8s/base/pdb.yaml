@@ -1,0 +1,29 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kong-pdb
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+      app.kubernetes.io/component: proxy
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: admin-panel-pdb
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: admin-panel
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: admin-panel
+      app.kubernetes.io/component: ui

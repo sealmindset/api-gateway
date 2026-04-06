@@ -1,0 +1,40 @@
+# =============================================================================
+# CODEOWNERS - API Gateway
+# =============================================================================
+# Defines required reviewers for different parts of the codebase.
+# GitHub will automatically request reviews from these teams when a PR
+# modifies files in the matching paths.
+#
+# Order matters: later rules take precedence over earlier ones.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# =============================================================================
+
+# Default: require at least one reviewer from platform-team
+*                           @platform-team
+
+# Terraform infrastructure
+terraform/                  @infra-team
+
+# Kubernetes manifests and Helm charts
+k8s/                        @infra-team @platform-team
+
+# Admin panel (Python/FastAPI application)
+admin-panel/                @backend-team
+
+# Kong configuration, plugins, and Dockerfile
+kong/                       @platform-team
+
+# Monitoring, alerting, dashboards
+monitoring/                 @sre-team
+
+# CI/CD pipelines and GitHub configuration
+.github/                    @infra-team
+
+# Database migrations require infra + backend review
+database/                   @infra-team @backend-team
+
+# Scripts
+scripts/                    @infra-team @platform-team
+
+# Docker Compose files
+docker-compose*.yml         @infra-team @platform-team

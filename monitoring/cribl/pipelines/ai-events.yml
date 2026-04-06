@@ -1,0 +1,272 @@
+# =============================================================================
+# Cribl Pipeline: AI Events
+# =============================================================================
+# Processes AI layer event logs from the API gateway. Parses structured JSON,
+# extracts key fields, masks PII, aggregates cost metrics, and routes events
+# to appropriate destinations based on severity.
+# =============================================================================
+
+id: ai-events
+name: AI Events Pipeline
+description: >
+  Ingests AI analysis event logs from the API gateway. Extracts operational
+  fields, masks PII in request/response payloads, aggregates hourly costs
+  per consumer, and routes high-severity anomalies to SIEM while archiving
+  all events to S3.
+disabled: false
+asyncFuncTimeout: 10000
+output: default
+
+functions:
+  # ---------------------------------------------------------------------------
+  # Step 1: Parse JSON logs
+  # ---------------------------------------------------------------------------
+  - id: parse_json
+    filter: "true"
+    disabled: false
+    conf:
+      mode: extract
+      type: json
+      srcField: _raw
+      dstField: __parsed
+    description: Parse incoming AI analysis logs from JSON format
+
+  # ---------------------------------------------------------------------------
+  # Step 2: Extract key fields for indexing and routing
+  # ---------------------------------------------------------------------------
+  - id: extract_fields
+    filter: "true"
+    disabled: false
+    conf:
+      mode: extract
+      type: regex
+      fieldNameExpression: ""
+      fields:
+        - inputField: __parsed.analysis_type
+          outputField: analysis_type
+        - inputField: __parsed.anomaly_score
+          outputField: anomaly_score
+          type: number
+        - inputField: __parsed.action_taken
+          outputField: action_taken
+        - inputField: __parsed.cost_usd
+          outputField: cost_usd
+          type: number
+        - inputField: __parsed.latency_ms
+          outputField: latency_ms
+          type: number
+        - inputField: __parsed.model
+          outputField: model
+        - inputField: __parsed.provider
+          outputField: provider
+        - inputField: __parsed.consumer_id
+          outputField: consumer_id
+        - inputField: __parsed.request_id
+          outputField: request_id
+        - inputField: __parsed.input_tokens
+          outputField: input_tokens
+          type: number
+        - inputField: __parsed.output_tokens
+          outputField: output_tokens
+          type: number
+    description: Extract analysis_type, anomaly_score, action_taken, cost, latency, model, consumer fields
+
+  # ---------------------------------------------------------------------------
+  # Step 3: Mask PII in request/response content
+  # ---------------------------------------------------------------------------
+  # Redacts common PII patterns (SSN, email, phone, credit card, auth tokens)
+  # from any request or response body content that may appear in AI inputs/outputs.
+  - id: mask_pii_ssn
+    filter: "true"
+    disabled: false
+    conf:
+      mode: replace
+      type: regex
+      fields:
+        - inputField: __parsed.result
+          regex: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+          replaceWith: "***-**-****"
+        - inputField: __parsed.input_data
+          regex: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+          replaceWith: "***-**-****"
+    description: Mask Social Security Numbers in AI input/output content
+
+  - id: mask_pii_email
+    filter: "true"
+    disabled: false
+    conf:
+      mode: replace
+      type: regex
+      fields:
+        - inputField: __parsed.result
+          regex: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+          replaceWith: "***@***.***"
+        - inputField: __parsed.input_data
+          regex: "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+          replaceWith: "***@***.***"
+    description: Mask email addresses in AI input/output content
+
+  - id: mask_pii_phone
+    filter: "true"
+    disabled: false
+    conf:
+      mode: replace
+      type: regex
+      fields:
+        - inputField: __parsed.result
+          regex: "\\b(\\+?1?[-.]?\\(?\\d{3}\\)?[-.]?\\d{3}[-.]?\\d{4})\\b"
+          replaceWith: "***-***-****"
+        - inputField: __parsed.input_data
+          regex: "\\b(\\+?1?[-.]?\\(?\\d{3}\\)?[-.]?\\d{3}[-.]?\\d{4})\\b"
+          replaceWith: "***-***-****"
+    description: Mask phone numbers in AI input/output content
+
+  - id: mask_pii_credit_card
+    filter: "true"
+    disabled: false
+    conf:
+      mode: replace
+      type: regex
+      fields:
+        - inputField: __parsed.result
+          regex: "\\b(?:\\d{4}[- ]?){3}\\d{4}\\b"
+          replaceWith: "****-****-****-****"
+        - inputField: __parsed.input_data
+          regex: "\\b(?:\\d{4}[- ]?){3}\\d{4}\\b"
+          replaceWith: "****-****-****-****"
+    description: Mask credit card numbers in AI input/output content
+
+  - id: mask_auth_tokens
+    filter: "true"
+    disabled: false
+    conf:
+      mode: replace
+      type: regex
+      fields:
+        - inputField: __parsed.result
+          regex: "(?i)(bearer\\s+|token[=:]\\s*|api[_-]?key[=:]\\s*|authorization[=:]\\s*)[a-zA-Z0-9._\\-]{20,}"
+          replaceWith: "$1[REDACTED]"
+        - inputField: __parsed.input_data
+          regex: "(?i)(bearer\\s+|token[=:]\\s*|api[_-]?key[=:]\\s*|authorization[=:]\\s*)[a-zA-Z0-9._\\-]{20,}"
+          replaceWith: "$1[REDACTED]"
+    description: Mask authorization tokens and API keys in AI input/output content
+
+  # ---------------------------------------------------------------------------
+  # Step 4: Aggregate AI costs per consumer per hour
+  # ---------------------------------------------------------------------------
+  - id: aggregate_costs
+    filter: cost_usd != null && cost_usd > 0
+    disabled: false
+    conf:
+      add:
+        - name: _metric
+          value: "'ai_gateway_cost_hourly'"
+        - name: _metric_type
+          value: "'counter'"
+        - name: _value
+          value: "cost_usd"
+      aggregations:
+        - name: total_cost_usd
+          op: sum
+          field: cost_usd
+        - name: total_input_tokens
+          op: sum
+          field: input_tokens
+        - name: total_output_tokens
+          op: sum
+          field: output_tokens
+        - name: request_count
+          op: count
+      groupBy:
+        - consumer_id
+        - model
+        - provider
+      flushInterval: 3600
+      timeWindow: 3600s
+    description: Aggregate AI invocation costs per consumer per hour for chargeback and budgeting
+
+  # ---------------------------------------------------------------------------
+  # Step 5: Add routing metadata
+  # ---------------------------------------------------------------------------
+  - id: tag_severity
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: _severity
+          value: >
+            anomaly_score != null && anomaly_score > 0.9 ? 'critical' :
+            anomaly_score != null && anomaly_score > 0.7 ? 'high' :
+            anomaly_score != null && anomaly_score > 0.5 ? 'medium' : 'low'
+        - name: _event_time
+          value: "Date.now() / 1000"
+    description: Tag events with severity level based on anomaly score thresholds
+
+routes:
+  # ---------------------------------------------------------------------------
+  # Route 1: High-severity anomalies to SIEM and alerting
+  # ---------------------------------------------------------------------------
+  - id: anomaly_siem_route
+    name: High-Severity Anomalies to SIEM
+    filter: analysis_type == 'anomaly' && anomaly_score != null && anomaly_score > 0.7
+    output: siem_and_alerting
+    final: false
+    description: >
+      Anomaly events with score > 0.7 are forwarded to the SIEM for security
+      investigation and to the alerting pipeline for immediate notification.
+
+  # ---------------------------------------------------------------------------
+  # Route 2: All events to S3 archive
+  # ---------------------------------------------------------------------------
+  - id: s3_archive_route
+    name: All AI Events to S3 Archive
+    filter: "true"
+    output: s3_archive
+    final: false
+    description: >
+      Every AI event is archived to S3 for long-term retention, compliance
+      auditing, and retrospective analysis.
+
+  # ---------------------------------------------------------------------------
+  # Route 3: Metrics to Prometheus
+  # ---------------------------------------------------------------------------
+  - id: prometheus_metrics_route
+    name: AI Metrics to Prometheus
+    filter: "true"
+    output: prometheus_remote_write
+    final: true
+    description: >
+      Extracted metrics (cost, latency, token counts, anomaly scores) are
+      forwarded to Prometheus via remote write for dashboarding and alerting.
+
+destinations:
+  - id: siem_and_alerting
+    systemType: splunk_hec
+    host: "${SIEM_HOST}"
+    port: 8088
+    token: "${SIEM_HEC_TOKEN}"
+    index: security_ai_events
+    sourcetype: ai_anomaly_event
+    tls:
+      disabled: false
+      rejectUnauthorized: true
+
+  - id: s3_archive
+    systemType: s3
+    bucket: "${AI_EVENTS_S3_BUCKET}"
+    region: "${AWS_REGION}"
+    prefix: "ai-events/year=!{_time:%Y}/month=!{_time:%m}/day=!{_time:%d}/hour=!{_time:%H}/"
+    format: json
+    compress: gzip
+    maxFileSizeMB: 128
+    maxFileOpenTimeSec: 300
+    stagePath: "/tmp/cribl-s3-staging/ai-events"
+    awsAuthenticationMethod: env
+
+  - id: prometheus_remote_write
+    systemType: prometheus
+    url: "${PROMETHEUS_REMOTE_WRITE_URL}"
+    format: prometheus_remote_write
+    labels:
+      source: ai_gateway
+      pipeline: ai_events

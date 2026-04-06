@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-panel
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: admin-panel
+    app.kubernetes.io/component: ui
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: admin-panel
+    app.kubernetes.io/component: ui
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP

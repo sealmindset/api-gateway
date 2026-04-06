@@ -1,0 +1,547 @@
+# =============================================================================
+# Kong Declarative Configuration
+# =============================================================================
+# This file defines the complete Kong API Gateway configuration in DB-less
+# compatible format. While designed for DB-less operation, it is equally valid
+# when loaded into a database-backed Kong instance via `kong config db_import`.
+#
+# Architecture:
+#   - Three authentication strategies: OAuth2, API Key, Basic Auth
+#   - Tiered rate limiting via consumer groups (free/standard/premium/enterprise)
+#   - Observability: Prometheus metrics, correlation IDs, structured logging
+#   - Security: CORS, IP restriction, bot detection
+#   - Log shipping to Cribl Stream (TCP primary, HTTP fallback)
+#
+# Usage:
+#   DB-less:  export KONG_DECLARATIVE_CONFIG=/etc/kong/kong.yml
+#   DB mode:  kong config db_import /etc/kong/kong.yml
+# =============================================================================
+
+_format_version: "3.0"
+_transform: true
+
+# =============================================================================
+# GLOBAL PLUGINS
+# =============================================================================
+# These plugins apply to every request passing through the gateway unless
+# overridden at the service or route level.
+
+plugins:
+
+  # ---------------------------------------------------------------------------
+  # Correlation ID - Request Tracing
+  # ---------------------------------------------------------------------------
+  # Injects a unique identifier into every request/response cycle. Downstream
+  # services should propagate this header for end-to-end distributed tracing.
+  - name: correlation-id
+    config:
+      header_name: X-Request-ID
+      generator: uuid#counter    # UUID prefix + monotonic counter for uniqueness
+      echo_downstream: true      # Return the ID in the response headers
+
+  # ---------------------------------------------------------------------------
+  # Prometheus - Metrics Export
+  # ---------------------------------------------------------------------------
+  # Exposes Prometheus-compatible metrics at the /metrics endpoint on the
+  # status API (port 8100). Scraped by Prometheus/Grafana stack.
+  - name: prometheus
+    config:
+      per_consumer: true         # Break down metrics by consumer identity
+      status_code_metrics: true  # Track response code distributions
+      latency_metrics: true      # Track upstream and Kong latency histograms
+      bandwidth_metrics: true    # Track ingress/egress bandwidth
+
+  # ---------------------------------------------------------------------------
+  # TCP Log - Primary Log Shipping to Cribl Stream
+  # ---------------------------------------------------------------------------
+  # Sends structured JSON log entries over TCP to Cribl Stream for ingestion,
+  # transformation, and routing to downstream SIEM/observability platforms.
+  - name: tcp-log
+    config:
+      host: cribl
+      port: 5514
+      tls: false                 # Set to true if Cribl endpoint uses TLS
+      keepalive: 60000           # Keep TCP connections alive for 60s
+      custom_fields_by_lua:
+        environment: "return os.getenv('KONG_ENVIRONMENT') or 'unknown'"
+        service_name: "return 'api-gateway'"
+
+  # ---------------------------------------------------------------------------
+  # HTTP Log - Backup Log Shipping to Cribl Stream
+  # ---------------------------------------------------------------------------
+  # Fallback HTTP-based log shipping. Cribl exposes an HTTP event receiver
+  # that accepts JSON payloads. Used when TCP transport is unavailable.
+  - name: http-log
+    config:
+      http_endpoint: http://cribl:9080/api/v1/kong
+      method: POST
+      timeout: 10000             # 10s timeout before giving up
+      keepalive: 60000
+      retry_count: 3             # Retry failed deliveries up to 3 times
+      queue_size: 1000           # Buffer up to 1000 entries in memory
+      flush_timeout: 2           # Flush buffer every 2 seconds
+      content_type: application/json
+      custom_fields_by_lua:
+        environment: "return os.getenv('KONG_ENVIRONMENT') or 'unknown'"
+
+  # ---------------------------------------------------------------------------
+  # CORS - Cross-Origin Resource Sharing
+  # ---------------------------------------------------------------------------
+  # Enables browser-based clients to interact with the API from allowed
+  # origins. Adjust origins for production deployments.
+  - name: cors
+    config:
+      origins:
+        - "https://*.sleepnumber.com"
+        - "https://localhost:3000"       # Local development
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+        - HEAD
+      headers:
+        - Accept
+        - Authorization
+        - Content-Type
+        - X-Request-ID
+        - X-API-Key
+        - X-Consumer-Custom-ID
+      exposed_headers:
+        - X-Request-ID
+        - X-RateLimit-Limit-Minute
+        - X-RateLimit-Remaining-Minute
+        - X-Kong-Upstream-Latency
+        - X-Kong-Proxy-Latency
+      credentials: true
+      max_age: 3600               # Cache preflight for 1 hour
+      preflight_continue: false
+
+  # ---------------------------------------------------------------------------
+  # IP Restriction - Disabled by Default
+  # ---------------------------------------------------------------------------
+  # When enabled, restricts access to a whitelist of IP addresses or CIDR
+  # ranges. Activate for internal-only services or during incident response.
+  - name: ip-restriction
+    enabled: false                # Enable and configure allow/deny lists as needed
+    config:
+      allow:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+      status: 403
+      message: "Access denied: your IP address is not allowed"
+
+  # ---------------------------------------------------------------------------
+  # Bot Detection
+  # ---------------------------------------------------------------------------
+  # Blocks requests from known bot user-agents. Legitimate bots (e.g.,
+  # monitoring agents) can be added to the allow list.
+  - name: bot-detection
+    config:
+      allow:
+        - "Datadog"               # Monitoring agent
+        - "Pingdom"               # Uptime monitoring
+        - "UptimeRobot"           # Uptime monitoring
+        - "kong-healthcheck"      # Internal health checks
+
+  # ---------------------------------------------------------------------------
+  # Request Transformer - Standard Headers
+  # ---------------------------------------------------------------------------
+  # Adds gateway metadata headers to every proxied request so upstream
+  # services can identify the request path through the gateway.
+  - name: request-transformer
+    config:
+      add:
+        headers:
+          - "X-Gateway: kong"
+          - "X-Gateway-Version: 3.9"
+          - "X-Forwarded-Proto: https"
+
+# =============================================================================
+# SERVICES
+# =============================================================================
+# Each service represents an upstream API. Routes attach to services to define
+# how inbound requests map to upstream targets.
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Service: API v1 (OAuth2 Protected)
+  # ---------------------------------------------------------------------------
+  # Primary API surface secured with OAuth2 bearer tokens. Intended for
+  # third-party integrations and partner applications.
+  - name: api-v1-oauth2
+    url: http://api-v1:8080
+    protocol: http
+    connect_timeout: 30000       # 30s connect timeout
+    write_timeout: 60000         # 60s write timeout
+    read_timeout: 60000          # 60s read timeout
+    retries: 3
+    tags:
+      - api-v1
+      - oauth2
+      - production
+
+    routes:
+      - name: api-v1-oauth2-route
+        protocols:
+          - https
+          - http
+        paths:
+          - /api/v1/oauth2
+        strip_path: true          # Strip /api/v1/oauth2 prefix before proxying
+        preserve_host: false
+        https_redirect_status_code: 301
+        tags:
+          - api-v1
+          - oauth2
+
+    plugins:
+      # OAuth2 authentication for this service
+      - name: oauth2
+        config:
+          enable_authorization_code: true
+          enable_client_credentials: true
+          enable_implicit_grant: false        # Disabled - insecure for production
+          enable_password_grant: false        # Disabled - insecure for production
+          token_expiration: 7200              # Tokens expire after 2 hours
+          refresh_token_ttl: 1209600          # Refresh tokens valid for 14 days
+          accept_http_if_already_terminated: true
+          global_credentials: false
+          auth_header_name: Authorization
+          hide_credentials: true              # Strip credentials before proxying
+          scopes:
+            - read
+            - write
+            - admin
+          mandatory_scope: true
+          provision_key: "CHANGE_ME_IN_PRODUCTION"  # Override via environment variable
+
+      # Rate limiting for OAuth2-authenticated requests
+      - name: rate-limiting
+        config:
+          minute: 120
+          hour: 5000
+          policy: local                       # Use 'redis' in clustered deployments
+          fault_tolerant: true                # Allow requests if rate limiter fails
+          hide_client_headers: false          # Expose rate limit headers to clients
+          error_code: 429
+          error_message: "Rate limit exceeded. Please retry after the window resets."
+
+  # ---------------------------------------------------------------------------
+  # Service: API v1 (API Key Protected)
+  # ---------------------------------------------------------------------------
+  # API surface secured with API keys. Suitable for server-to-server
+  # communication where OAuth2 is not practical.
+  - name: api-v1-keyauth
+    url: http://api-v1:8080
+    protocol: http
+    connect_timeout: 30000
+    write_timeout: 60000
+    read_timeout: 60000
+    retries: 3
+    tags:
+      - api-v1
+      - key-auth
+      - production
+
+    routes:
+      - name: api-v1-keyauth-route
+        protocols:
+          - https
+          - http
+        paths:
+          - /api/v1
+        strip_path: true
+        preserve_host: false
+        https_redirect_status_code: 301
+        tags:
+          - api-v1
+          - key-auth
+
+    plugins:
+      # API Key authentication for this service
+      - name: key-auth
+        config:
+          key_names:
+            - X-API-Key                      # Header-based key
+            - apikey                          # Query parameter fallback
+          key_in_header: true
+          key_in_query: true
+          key_in_body: false                 # Do not inspect request bodies
+          hide_credentials: true             # Strip key before proxying
+          anonymous: null                    # No anonymous fallback
+          run_on_preflight: false            # Skip auth on OPTIONS requests
+
+      # Rate limiting for key-auth requests
+      - name: rate-limiting
+        config:
+          minute: 60
+          hour: 2500
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+          error_code: 429
+          error_message: "Rate limit exceeded. Please retry after the window resets."
+
+  # ---------------------------------------------------------------------------
+  # Service: Internal API (Basic Auth Protected)
+  # ---------------------------------------------------------------------------
+  # Internal admin and management endpoints secured with Basic Authentication.
+  # Should only be exposed on internal networks.
+  - name: internal-api-basicauth
+    url: http://internal-api:8080
+    protocol: http
+    connect_timeout: 10000
+    write_timeout: 30000
+    read_timeout: 30000
+    retries: 2
+    tags:
+      - internal-api
+      - basic-auth
+      - internal
+
+    routes:
+      - name: internal-api-basicauth-route
+        protocols:
+          - https
+          - http
+        paths:
+          - /internal/api
+        strip_path: true
+        preserve_host: false
+        https_redirect_status_code: 301
+        tags:
+          - internal-api
+          - basic-auth
+
+    plugins:
+      # Basic authentication for internal endpoints
+      - name: basic-auth
+        config:
+          hide_credentials: true             # Strip credentials before proxying
+          anonymous: null                    # No anonymous fallback
+
+      # Strict rate limiting for internal API
+      - name: rate-limiting
+        config:
+          minute: 30
+          hour: 1000
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+          error_code: 429
+          error_message: "Rate limit exceeded on internal API."
+
+      # IP restriction enabled for internal service
+      - name: ip-restriction
+        enabled: true
+        config:
+          allow:
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+          status: 403
+          message: "Internal API: access restricted to internal networks"
+
+  # ---------------------------------------------------------------------------
+  # Service: Health Check (Unauthenticated)
+  # ---------------------------------------------------------------------------
+  # Public health check endpoint. No authentication required. Used by load
+  # balancers, orchestrators, and monitoring systems.
+  - name: health-check
+    url: http://api-v1:8080/health
+    protocol: http
+    connect_timeout: 5000
+    write_timeout: 5000
+    read_timeout: 5000
+    retries: 1
+    tags:
+      - health
+      - public
+
+    routes:
+      - name: health-check-route
+        protocols:
+          - https
+          - http
+        paths:
+          - /health
+        strip_path: false
+        methods:
+          - GET
+          - HEAD
+        tags:
+          - health
+          - public
+
+    plugins:
+      # Aggressive rate limiting on health endpoint to prevent abuse
+      - name: rate-limiting
+        config:
+          minute: 30
+          hour: 500
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: true
+          error_code: 429
+          error_message: "Health check rate limit exceeded."
+
+# =============================================================================
+# CONSUMERS
+# =============================================================================
+# Consumers represent API clients. Each consumer can have credentials for
+# one or more authentication methods and belong to consumer groups for
+# tiered rate limiting.
+
+consumers:
+
+  # ---------------------------------------------------------------------------
+  # Example: Partner Application (OAuth2 + API Key)
+  # ---------------------------------------------------------------------------
+  - username: partner-app-example
+    custom_id: partner-001
+    tags:
+      - partner
+      - example
+    keyauth_credentials:
+      - key: REPLACE_WITH_SECURE_API_KEY_1
+        tags:
+          - partner
+          - example
+
+  # ---------------------------------------------------------------------------
+  # Example: Internal Service (API Key)
+  # ---------------------------------------------------------------------------
+  - username: internal-service-example
+    custom_id: internal-001
+    tags:
+      - internal
+      - example
+    keyauth_credentials:
+      - key: REPLACE_WITH_SECURE_API_KEY_2
+        tags:
+          - internal
+          - example
+
+  # ---------------------------------------------------------------------------
+  # Example: Admin User (Basic Auth)
+  # ---------------------------------------------------------------------------
+  - username: admin-user-example
+    custom_id: admin-001
+    tags:
+      - admin
+      - example
+    basicauth_credentials:
+      - username: admin
+        password: REPLACE_WITH_SECURE_PASSWORD
+        tags:
+          - admin
+          - example
+
+  # ---------------------------------------------------------------------------
+  # Example: Free Tier Consumer
+  # ---------------------------------------------------------------------------
+  - username: free-tier-example
+    custom_id: free-001
+    tags:
+      - free-tier
+      - example
+    keyauth_credentials:
+      - key: REPLACE_WITH_SECURE_API_KEY_FREE
+        tags:
+          - free-tier
+
+# =============================================================================
+# CONSUMER GROUPS
+# =============================================================================
+# Consumer groups enable tiered rate limiting. Assign consumers to groups
+# and configure per-group rate limits via the rate-limiting-advanced plugin
+# or by overriding the rate-limiting plugin configuration.
+
+consumer_groups:
+
+  # ---------------------------------------------------------------------------
+  # Free Tier - Minimal access for evaluation and development
+  # ---------------------------------------------------------------------------
+  - name: free
+    tags:
+      - tier
+      - free
+    consumers:
+      - username: free-tier-example
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 10
+          hour: 500
+          day: 5000
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+          error_code: 429
+          error_message: "Free tier rate limit exceeded. Upgrade your subscription for higher limits."
+
+  # ---------------------------------------------------------------------------
+  # Standard Tier - Production workloads with moderate throughput
+  # ---------------------------------------------------------------------------
+  - name: standard
+    tags:
+      - tier
+      - standard
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 60
+          hour: 5000
+          day: 50000
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+          error_code: 429
+          error_message: "Standard tier rate limit exceeded. Consider upgrading to premium."
+
+  # ---------------------------------------------------------------------------
+  # Premium Tier - High-throughput production workloads
+  # ---------------------------------------------------------------------------
+  - name: premium
+    tags:
+      - tier
+      - premium
+    consumers:
+      - username: partner-app-example
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 300
+          hour: 25000
+          day: 250000
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+          error_code: 429
+          error_message: "Premium tier rate limit exceeded. Contact support for enterprise limits."
+
+  # ---------------------------------------------------------------------------
+  # Enterprise Tier - Highest throughput for strategic partners
+  # ---------------------------------------------------------------------------
+  - name: enterprise
+    tags:
+      - tier
+      - enterprise
+    consumers:
+      - username: internal-service-example
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 1000
+          hour: 100000
+          day: 1000000
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+          error_code: 429
+          error_message: "Enterprise tier rate limit exceeded. Contact your account manager."

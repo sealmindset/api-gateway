@@ -1,0 +1,160 @@
+# Prometheus Configuration for API Gateway Monitoring Stack
+# Auto-generated for Kong Gateway + Admin Panel + Infrastructure
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    cluster: "api-gateway"
+    environment: "production"
+
+rule_files:
+  - "alerts.yml"
+  - "recording_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - "alertmanager:9093"
+
+remote_write:
+  - url: "http://cribl:9090/api/v1/write"
+    queue_config:
+      max_samples_per_send: 5000
+      batch_send_deadline: 5s
+      max_shards: 10
+      min_shards: 1
+      capacity: 10000
+    write_relabel_configs:
+      - source_labels: [__name__]
+        regex: "kong_.*|node_.*|container_.*"
+        action: keep
+
+scrape_configs:
+  # ---------------------------------------------------------------
+  # Kong Gateway Metrics (Prometheus plugin on port 8100)
+  # ---------------------------------------------------------------
+  - job_name: "kong"
+    scrape_interval: 15s
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "kong:8100"
+        labels:
+          component: "gateway"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: "([^:]+).*"
+        replacement: "${1}"
+
+  # ---------------------------------------------------------------
+  # Admin Panel Metrics
+  # ---------------------------------------------------------------
+  - job_name: "admin-panel"
+    scrape_interval: 30s
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "admin-panel:3000"
+        labels:
+          component: "admin-panel"
+
+  # ---------------------------------------------------------------
+  # Node Exporter (host-level metrics)
+  # ---------------------------------------------------------------
+  - job_name: "node-exporter"
+    scrape_interval: 30s
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "node-exporter:9100"
+        labels:
+          component: "infrastructure"
+
+  # ---------------------------------------------------------------
+  # cAdvisor (container-level metrics)
+  # ---------------------------------------------------------------
+  - job_name: "cadvisor"
+    scrape_interval: 30s
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "cadvisor:8080"
+        labels:
+          component: "infrastructure"
+
+  # ---------------------------------------------------------------
+  # Kubernetes Service Discovery - Pod auto-discovery
+  # ---------------------------------------------------------------
+  - job_name: "kubernetes-pods"
+    scrape_interval: 15s
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      # Only scrape pods with prometheus.io/scrape=true annotation
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: "true"
+      # Override metrics path if prometheus.io/path is set
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      # Override port if prometheus.io/port is set
+      - source_labels:
+          [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: "${1}:${2}"
+        target_label: __address__
+      # Map pod labels to Prometheus labels
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+      - source_labels: [__meta_kubernetes_pod_node_name]
+        action: replace
+        target_label: kubernetes_node
+
+  # ---------------------------------------------------------------
+  # Kubernetes Service Discovery - Service endpoints
+  # ---------------------------------------------------------------
+  - job_name: "kubernetes-service-endpoints"
+    scrape_interval: 15s
+    kubernetes_sd_configs:
+      - role: endpoints
+    relabel_configs:
+      - source_labels:
+          [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+        action: keep
+        regex: "true"
+      - source_labels:
+          [__meta_kubernetes_service_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels:
+          [
+            __address__,
+            __meta_kubernetes_service_annotation_prometheus_io_port,
+          ]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: "${1}:${2}"
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        action: replace
+        target_label: kubernetes_service_name
+

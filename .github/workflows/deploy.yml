@@ -1,0 +1,403 @@
+# =============================================================================
+# Deploy Pipeline - API Gateway
+# =============================================================================
+# Triggered after PRs merge to main. Deploys through dev -> staging -> prod
+# with automatic progression for dev/staging and manual approval for prod.
+# Each stage runs smoke tests and rolls back on failure.
+# =============================================================================
+
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}
+  ACR_REPOSITORY_KONG: api-gateway/kong
+  ACR_REPOSITORY_ADMIN: api-gateway/admin-panel
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Prepare: Determine image tags and what changed
+  # ---------------------------------------------------------------------------
+  prepare:
+    name: Prepare Deployment
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.tag.outputs.tag }}
+      terraform_changed: ${{ steps.changes.outputs.terraform }}
+      k8s_changed: ${{ steps.changes.outputs.k8s }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Determine image tag
+        id: tag
+        run: |
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          echo "tag=main-${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+
+      - name: Detect changes
+        id: changes
+        run: |
+          # Check what changed in this push
+          CHANGED=$(git diff --name-only HEAD~1 HEAD)
+          if echo "$CHANGED" | grep -q "^terraform/"; then
+            echo "terraform=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "terraform=false" >> "$GITHUB_OUTPUT"
+          fi
+          if echo "$CHANGED" | grep -qE "^(k8s/|kong/|admin-panel/)"; then
+            echo "k8s=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "k8s=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Deploy to Dev
+  # ---------------------------------------------------------------------------
+  deploy-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: prepare
+    environment: dev
+    env:
+      ENVIRONMENT: dev
+      AKS_CLUSTER: ${{ secrets.DEV_AKS_CLUSTER }}
+      AKS_RESOURCE_GROUP: ${{ secrets.DEV_AKS_RESOURCE_GROUP }}
+      IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure Azure credentials
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_DEV }}
+
+      # -- Terraform Apply (if infra changed) ---------------------------------
+      - name: Setup Terraform
+        if: needs.prepare.outputs.terraform_changed == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.x"
+
+      - name: Terraform Init
+        if: needs.prepare.outputs.terraform_changed == 'true'
+        run: terraform init
+        working-directory: terraform/environments/dev/
+
+      - name: Terraform Apply
+        if: needs.prepare.outputs.terraform_changed == 'true'
+        run: terraform apply -auto-approve -input=false
+        working-directory: terraform/environments/dev/
+
+      # -- Kubernetes Deploy ---------------------------------------------------
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "$AKS_RESOURCE_GROUP" \
+            --name "$AKS_CLUSTER" \
+            --overwrite-existing
+
+      - name: Deploy to Kubernetes
+        run: |
+          # Substitute image tags in manifests and apply
+          export IMAGE_TAG="${{ env.IMAGE_TAG }}"
+          export ACR_REGISTRY="${{ env.ACR_REGISTRY }}"
+
+          for manifest in k8s/overlays/dev/*.yml; do
+            envsubst < "$manifest" | kubectl apply -f -
+          done
+
+          # Wait for rollout to complete
+          kubectl rollout status deployment/kong-gateway -n api-gateway --timeout=300s
+          kubectl rollout status deployment/admin-panel -n api-gateway --timeout=300s
+
+      # -- Smoke Tests ---------------------------------------------------------
+      - name: Run smoke tests
+        id: smoke
+        run: |
+          KONG_URL=$(kubectl get svc kong-proxy -n api-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          ADMIN_URL=$(kubectl get svc admin-panel -n api-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+          echo "Running smoke tests against dev environment..."
+
+          # Test Kong proxy health
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://${KONG_URL}:8000/health" --max-time 10)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Kong health check failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+          echo "Kong health check passed"
+
+          # Test Admin Panel health
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://${ADMIN_URL}:8080/api/health" --max-time 10)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Admin Panel health check failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+          echo "Admin Panel health check passed"
+
+          # Test Kong Admin API
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://${KONG_URL}:8001/status" --max-time 10)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Kong Admin API health check failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+          echo "All dev smoke tests passed"
+        continue-on-error: true
+
+      - name: Rollback on smoke test failure
+        if: steps.smoke.outcome == 'failure'
+        run: |
+          echo "Smoke tests failed - rolling back dev deployment..."
+          kubectl rollout undo deployment/kong-gateway -n api-gateway
+          kubectl rollout undo deployment/admin-panel -n api-gateway
+          kubectl rollout status deployment/kong-gateway -n api-gateway --timeout=300s
+          kubectl rollout status deployment/admin-panel -n api-gateway --timeout=300s
+          echo "Rollback complete."
+          exit 1
+
+  # ---------------------------------------------------------------------------
+  # Deploy to Staging
+  # ---------------------------------------------------------------------------
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [prepare, deploy-dev]
+    environment: staging
+    env:
+      ENVIRONMENT: staging
+      AKS_CLUSTER: ${{ secrets.STAGING_AKS_CLUSTER }}
+      AKS_RESOURCE_GROUP: ${{ secrets.STAGING_AKS_RESOURCE_GROUP }}
+      IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure Azure credentials
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_STAGING }}
+
+      # -- Terraform Apply (if infra changed) ---------------------------------
+      - name: Setup Terraform
+        if: needs.prepare.outputs.terraform_changed == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.x"
+
+      - name: Terraform Init
+        if: needs.prepare.outputs.terraform_changed == 'true'
+        run: terraform init
+        working-directory: terraform/environments/staging/
+
+      - name: Terraform Apply
+        if: needs.prepare.outputs.terraform_changed == 'true'
+        run: terraform apply -auto-approve -input=false
+        working-directory: terraform/environments/staging/
+
+      # -- Kubernetes Deploy ---------------------------------------------------
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "$AKS_RESOURCE_GROUP" \
+            --name "$AKS_CLUSTER" \
+            --overwrite-existing
+
+      - name: Deploy to Kubernetes
+        run: |
+          export IMAGE_TAG="${{ env.IMAGE_TAG }}"
+          export ACR_REGISTRY="${{ env.ACR_REGISTRY }}"
+
+          for manifest in k8s/overlays/staging/*.yml; do
+            envsubst < "$manifest" | kubectl apply -f -
+          done
+
+          kubectl rollout status deployment/kong-gateway -n api-gateway --timeout=300s
+          kubectl rollout status deployment/admin-panel -n api-gateway --timeout=300s
+
+      # -- Smoke Tests ---------------------------------------------------------
+      - name: Run smoke tests
+        id: smoke
+        run: |
+          KONG_URL=$(kubectl get svc kong-proxy -n api-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          ADMIN_URL=$(kubectl get svc admin-panel -n api-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+          echo "Running smoke tests against staging environment..."
+
+          # Test Kong proxy health
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://${KONG_URL}:8000/health" --max-time 10)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Kong health check failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+          # Test Admin Panel health
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://${ADMIN_URL}:8080/api/health" --max-time 10)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Admin Panel health check failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+          # Test a sample API route through Kong
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://${KONG_URL}:8000/api/v1/health" --max-time 10)
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "401" ]; then
+            echo "API route test failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+          echo "All staging smoke tests passed"
+        continue-on-error: true
+
+      - name: Rollback on smoke test failure
+        if: steps.smoke.outcome == 'failure'
+        run: |
+          echo "Smoke tests failed - rolling back staging deployment..."
+          kubectl rollout undo deployment/kong-gateway -n api-gateway
+          kubectl rollout undo deployment/admin-panel -n api-gateway
+          kubectl rollout status deployment/kong-gateway -n api-gateway --timeout=300s
+          kubectl rollout status deployment/admin-panel -n api-gateway --timeout=300s
+          echo "Rollback complete."
+          exit 1
+
+  # ---------------------------------------------------------------------------
+  # Deploy to Production (requires manual approval)
+  # ---------------------------------------------------------------------------
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [prepare, deploy-staging]
+    # The 'production' environment must have required reviewers configured
+    # in GitHub Settings > Environments > production > Protection rules
+    environment:
+      name: production
+      url: https://api-gateway.sleepnumber.com
+    env:
+      ENVIRONMENT: prod
+      AKS_CLUSTER: ${{ secrets.PROD_AKS_CLUSTER }}
+      AKS_RESOURCE_GROUP: ${{ secrets.PROD_AKS_RESOURCE_GROUP }}
+      IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure Azure credentials
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
+
+      # -- Terraform Apply (if infra changed) ---------------------------------
+      - name: Setup Terraform
+        if: needs.prepare.outputs.terraform_changed == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.x"
+
+      - name: Terraform Init
+        if: needs.prepare.outputs.terraform_changed == 'true'
+        run: terraform init
+        working-directory: terraform/environments/prod/
+
+      - name: Terraform Apply
+        if: needs.prepare.outputs.terraform_changed == 'true'
+        run: terraform apply -auto-approve -input=false
+        working-directory: terraform/environments/prod/
+
+      # -- Kubernetes Rolling Deploy -------------------------------------------
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "$AKS_RESOURCE_GROUP" \
+            --name "$AKS_CLUSTER" \
+            --overwrite-existing
+
+      - name: Deploy to Kubernetes (rolling update)
+        run: |
+          export IMAGE_TAG="${{ env.IMAGE_TAG }}"
+          export ACR_REGISTRY="${{ env.ACR_REGISTRY }}"
+
+          # Apply manifests with rolling update strategy
+          for manifest in k8s/overlays/prod/*.yml; do
+            envsubst < "$manifest" | kubectl apply -f -
+          done
+
+          # Wait for rolling update to complete
+          kubectl rollout status deployment/kong-gateway -n api-gateway --timeout=600s
+          kubectl rollout status deployment/admin-panel -n api-gateway --timeout=600s
+
+      # -- Smoke Tests ---------------------------------------------------------
+      - name: Run production smoke tests
+        id: smoke
+        run: |
+          KONG_URL=$(kubectl get svc kong-proxy -n api-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          ADMIN_URL=$(kubectl get svc admin-panel -n api-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+          echo "Running production smoke tests..."
+
+          # Kong proxy health
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://${KONG_URL}:8000/health" --max-time 15)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "CRITICAL: Kong health check failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+          # Admin Panel health
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://${ADMIN_URL}:8080/api/health" --max-time 15)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "CRITICAL: Admin Panel health check failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+          # Kong Admin API
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://${KONG_URL}:8001/status" --max-time 15)
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "CRITICAL: Kong Admin API failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+          # Verify Kong routes are responsive
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://${KONG_URL}:8000/api/v1/health" --max-time 15)
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "401" ]; then
+            echo "CRITICAL: API route test failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+          echo "All production smoke tests passed"
+        continue-on-error: true
+
+      - name: Rollback on smoke test failure
+        if: steps.smoke.outcome == 'failure'
+        run: |
+          echo "CRITICAL: Production smoke tests failed - initiating rollback..."
+          kubectl rollout undo deployment/kong-gateway -n api-gateway
+          kubectl rollout undo deployment/admin-panel -n api-gateway
+          kubectl rollout status deployment/kong-gateway -n api-gateway --timeout=600s
+          kubectl rollout status deployment/admin-panel -n api-gateway --timeout=600s
+          echo "Production rollback complete. Manual investigation required."
+          exit 1
+
+      - name: Notify deployment success
+        if: steps.smoke.outcome == 'success'
+        run: |
+          echo "Production deployment successful!"
+          echo "Image tag: ${{ env.IMAGE_TAG }}"
+          echo "Commit: ${{ github.sha }}"

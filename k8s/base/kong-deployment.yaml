@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kong
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: proxy
+    app.kubernetes.io/part-of: api-gateway
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: proxy
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kong
+      app.kubernetes.io/component: proxy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kong
+        app.kubernetes.io/component: proxy
+        app.kubernetes.io/part-of: api-gateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8100"
+        prometheus.io/path: /metrics
+    spec:
+      serviceAccountName: kong
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - kong
+                topologyKey: kubernetes.io/hostname
+            - weight: 50
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - kong
+                topologyKey: topology.kubernetes.io/zone
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: kong
+          image: kong:3.6
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: proxy
+              containerPort: 8000
+              protocol: TCP
+            - name: proxy-tls
+              containerPort: 8443
+              protocol: TCP
+            - name: admin
+              containerPort: 8001
+              protocol: TCP
+            - name: status
+              containerPort: 8100
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: kong-config
+            - secretRef:
+                name: kong-secrets
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: status
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: status
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          startupProbe:
+            httpGet:
+              path: /status
+              port: status
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: kong-plugins
+              mountPath: /opt/kong/plugins
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: kong-prefix
+              mountPath: /kong_prefix
+      volumes:
+        - name: kong-plugins
+          configMap:
+            name: kong-custom-plugins
+            optional: true
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: kong-prefix
+          emptyDir:
+            sizeLimit: 256Mi

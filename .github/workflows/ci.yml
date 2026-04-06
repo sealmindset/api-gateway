@@ -1,0 +1,398 @@
+# =============================================================================
+# CI Pipeline - API Gateway
+# =============================================================================
+# Runs on every push and pull request to main. Validates code quality,
+# runs tests, performs security scanning, and builds container images.
+# All jobs must pass before a PR can be merged.
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}
+  ACR_REPOSITORY_KONG: api-gateway/kong
+  ACR_REPOSITORY_ADMIN: api-gateway/admin-panel
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Lint: Validate code formatting and style across all components
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # -- Terraform Linting --------------------------------------------------
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.x"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive -diff
+        working-directory: terraform/
+
+      - name: Terraform Validate (Dev)
+        run: |
+          terraform init -backend=false
+          terraform validate
+        working-directory: terraform/environments/dev/
+
+      - name: Terraform Validate (Staging)
+        run: |
+          terraform init -backend=false
+          terraform validate
+        working-directory: terraform/environments/staging/
+
+      - name: Terraform Validate (Prod)
+        run: |
+          terraform init -backend=false
+          terraform validate
+        working-directory: terraform/environments/prod/
+
+      # -- Python Linting (Admin Panel) ---------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python linting tools
+        run: pip install ruff
+
+      - name: Ruff Lint (Admin Panel)
+        run: ruff check --output-format=github admin-panel/
+
+      - name: Ruff Format Check (Admin Panel)
+        run: ruff format --check admin-panel/
+
+      # -- YAML Linting -------------------------------------------------------
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: YAML Lint
+        run: |
+          yamllint -c .yamllint.yml \
+            .github/ \
+            k8s/ \
+            docker-compose.yml \
+            docker-compose.prod.yml
+
+  # ---------------------------------------------------------------------------
+  # Test: Run unit and integration tests
+  # ---------------------------------------------------------------------------
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_api_gateway
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U test_user"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # -- Admin Panel Tests ---------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          cd admin-panel
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run admin panel unit tests
+        env:
+          DATABASE_URL: "postgresql://test_user:test_password@localhost:5432/test_api_gateway"
+          REDIS_URL: "redis://localhost:6379/0"
+          SECRET_KEY: "ci-test-secret-key-not-for-production"
+          ENVIRONMENT: "test"
+        run: |
+          cd admin-panel
+          pytest tests/ \
+            --cov=app \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --junitxml=test-results.xml \
+            -v
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            admin-panel/coverage.xml
+            admin-panel/test-results.xml
+
+      # -- Kong Plugin Tests ---------------------------------------------------
+      - name: Run Kong plugin tests
+        run: |
+          if [ -d "kong/plugins" ] && [ -f "kong/plugins/Makefile" ]; then
+            cd kong/plugins
+            make test
+          else
+            echo "No Kong plugin tests found, skipping."
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Security Scan: Container and IaC vulnerability scanning
+  # ---------------------------------------------------------------------------
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # -- Trivy Container Scan ------------------------------------------------
+      - name: Build Kong image for scanning
+        run: docker build -t kong-scan:latest -f kong/Dockerfile kong/
+
+      - name: Build Admin Panel image for scanning
+        run: docker build -t admin-panel-scan:latest -f admin-panel/Dockerfile admin-panel/
+
+      - name: Trivy scan - Kong image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "kong-scan:latest"
+          format: "sarif"
+          output: "trivy-kong.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+
+      - name: Trivy scan - Admin Panel image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "admin-panel-scan:latest"
+          format: "sarif"
+          output: "trivy-admin.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+
+      - name: Upload Trivy results to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-kong.sarif"
+          category: "trivy-kong"
+
+      - name: Upload Trivy admin results to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "trivy-admin.sarif"
+          category: "trivy-admin"
+
+      # -- Checkov Terraform Scan ----------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Checkov Terraform scan
+        run: |
+          checkov \
+            --directory terraform/ \
+            --framework terraform \
+            --output cli \
+            --output sarif \
+            --output-file-path . \
+            --soft-fail-on LOW \
+            --compact
+
+      - name: Upload Checkov results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "results.sarif"
+          category: "checkov"
+
+  # ---------------------------------------------------------------------------
+  # Build: Build and push Docker images to Azure Container Registry
+  # Only runs on main and release/* branches
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: tag
+        run: |
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          echo "tag=${BRANCH}-${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+          echo "sha=${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Azure Container Registry
+        uses: azure/docker-login@v2
+        with:
+          login-server: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push Kong image
+        run: |
+          docker build \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            -t ${{ env.ACR_REGISTRY }}/${{ env.ACR_REPOSITORY_KONG }}:${{ steps.tag.outputs.tag }} \
+            -t ${{ env.ACR_REGISTRY }}/${{ env.ACR_REPOSITORY_KONG }}:latest \
+            -f kong/Dockerfile \
+            kong/
+          docker push ${{ env.ACR_REGISTRY }}/${{ env.ACR_REPOSITORY_KONG }} --all-tags
+
+      - name: Build and push Admin Panel image
+        run: |
+          docker build \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            -t ${{ env.ACR_REGISTRY }}/${{ env.ACR_REPOSITORY_ADMIN }}:${{ steps.tag.outputs.tag }} \
+            -t ${{ env.ACR_REGISTRY }}/${{ env.ACR_REPOSITORY_ADMIN }}:latest \
+            -f admin-panel/Dockerfile \
+            admin-panel/
+          docker push ${{ env.ACR_REGISTRY }}/${{ env.ACR_REPOSITORY_ADMIN }} --all-tags
+
+  # ---------------------------------------------------------------------------
+  # Terraform Plan: Run plan on affected environment, post as PR comment
+  # ---------------------------------------------------------------------------
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: lint
+    if: github.event_name == 'pull_request'
+    strategy:
+      matrix:
+        environment: [dev, staging, prod]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for Terraform changes
+        id: changes
+        run: |
+          # Detect if there are changes in terraform/ that affect this environment
+          CHANGED=$(git diff --name-only origin/main...HEAD -- \
+            terraform/modules/ \
+            terraform/environments/${{ matrix.environment }}/)
+          if [ -n "$CHANGED" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Terraform
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.x"
+
+      - name: Configure Azure credentials
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Terraform Init
+        if: steps.changes.outputs.has_changes == 'true'
+        run: terraform init
+        working-directory: terraform/environments/${{ matrix.environment }}/
+
+      - name: Terraform Plan
+        if: steps.changes.outputs.has_changes == 'true'
+        id: plan
+        run: |
+          terraform plan -no-color -out=tfplan 2>&1 | tee plan-output.txt
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+        working-directory: terraform/environments/${{ matrix.environment }}/
+        continue-on-error: true
+
+      - name: Post plan as PR comment
+        if: steps.changes.outputs.has_changes == 'true' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const planOutput = fs.readFileSync(
+              'terraform/environments/${{ matrix.environment }}/plan-output.txt', 'utf8'
+            );
+            const truncated = planOutput.length > 60000
+              ? planOutput.substring(0, 60000) + '\n\n... (truncated)'
+              : planOutput;
+            const body = `### Terraform Plan: \`${{ matrix.environment }}\`
+
+            <details>
+            <summary>Click to expand plan output</summary>
+
+            \`\`\`hcl
+            ${truncated}
+            \`\`\`
+
+            </details>
+
+            **Plan exit code:** \`${{ steps.plan.outputs.exitcode }}\`
+            `;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Fail on plan error
+        if: steps.changes.outputs.has_changes == 'true' && steps.plan.outputs.exitcode != '0'
+        run: exit 1

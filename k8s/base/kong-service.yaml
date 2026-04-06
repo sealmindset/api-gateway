@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-proxy
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: proxy
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: proxy
+  ports:
+    - name: http
+      port: 8000
+      targetPort: proxy
+      protocol: TCP
+    - name: https
+      port: 8443
+      targetPort: proxy-tls
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-admin
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: admin
+    app.kubernetes.io/part-of: api-gateway
+  annotations:
+    description: "Internal-only admin API - do not expose externally"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: proxy
+  ports:
+    - name: admin
+      port: 8001
+      targetPort: admin
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-status
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: status
+    app.kubernetes.io/part-of: api-gateway
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8100"
+    prometheus.io/path: /metrics
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: proxy
+  ports:
+    - name: status
+      port: 8100
+      targetPort: status
+      protocol: TCP

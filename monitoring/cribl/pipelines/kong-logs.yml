@@ -1,0 +1,221 @@
+# Cribl Stream Pipeline: Kong Access Logs
+# Processes Kong HTTP log plugin output (JSON format)
+# Enriches, masks sensitive data, and routes to multiple destinations
+
+id: kong-logs
+description: "Parse and enrich Kong access logs, mask sensitive data, route to Splunk/S3/Prometheus"
+disabled: false
+asyncFuncTimeout: 1000
+functions:
+  # ---------------------------------------------------------------
+  # Step 1: Parse JSON log format from Kong HTTP log plugin
+  # ---------------------------------------------------------------
+  - id: serde
+    filter: "true"
+    disabled: false
+    conf:
+      mode: extract
+      type: json
+      srcField: _raw
+
+  # ---------------------------------------------------------------
+  # Step 2: Extract and normalize key fields
+  # ---------------------------------------------------------------
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        # Core request fields
+        - name: http_method
+          value: "request.method"
+        - name: request_uri
+          value: "request.uri"
+        - name: request_url
+          value: "request.url"
+        - name: http_version
+          value: "request.http_version"
+        - name: request_size
+          value: "request.size"
+        # Response fields
+        - name: response_status
+          value: "response.status"
+        - name: response_size
+          value: "response.size"
+        # Routing fields
+        - name: kong_service_name
+          value: "service.name"
+        - name: kong_service_id
+          value: "service.id"
+        - name: kong_route_name
+          value: "route.name"
+        - name: kong_route_id
+          value: "route.id"
+        # Consumer / auth fields
+        - name: consumer_username
+          value: "consumer.username || 'anonymous'"
+        - name: consumer_id
+          value: "consumer.id || 'none'"
+        - name: authenticated_entity
+          value: "authenticated_entity.id || 'none'"
+        - name: auth_method
+          value: "consumer.auth_method || 'none'"
+        # Client fields
+        - name: client_ip
+          value: "client_ip"
+        - name: client_port
+          value: "request.headers['x-forwarded-port'] || '0'"
+        # Latency fields (Kong provides these in milliseconds)
+        - name: latency_request
+          value: "latencies.request"
+        - name: latency_kong
+          value: "latencies.kong"
+        - name: latency_proxy
+          value: "latencies.proxy"
+        # Timestamp
+        - name: _time
+          value: "started_at / 1000"
+
+  # ---------------------------------------------------------------
+  # Step 3: Geo-IP lookup on client IP
+  # ---------------------------------------------------------------
+  - id: geoip
+    filter: "client_ip != null && client_ip !== '127.0.0.1'"
+    disabled: false
+    conf:
+      inField: client_ip
+      outField: geo
+      file: /opt/cribl/share/GeoLite2-City.mmdb
+      additionalFields:
+        - country_name
+        - country_code
+        - city_name
+        - region_name
+        - latitude
+        - longitude
+        - asn
+        - asn_org
+
+  # ---------------------------------------------------------------
+  # Step 4: Mask sensitive data - auth tokens and API keys
+  # Show only last 4 characters
+  # ---------------------------------------------------------------
+  - id: mask
+    filter: "true"
+    disabled: false
+    conf:
+      rules:
+        # Mask Authorization Bearer tokens
+        - matchRegex: "(Bearer\\s+)([A-Za-z0-9\\-._~+/]+=*)"
+          replaceExpr: "`${g1}****${g2.slice(-4)}`"
+          fields:
+            - request.headers.authorization
+            - _raw
+        # Mask API keys in headers
+        - matchRegex: "(apikey[\":]\\s*[\"']?)([A-Za-z0-9\\-._~+/]{8,})"
+          replaceExpr: "`${g1}****${g2.slice(-4)}`"
+          fields:
+            - request.headers
+            - request.querystring
+            - _raw
+        # Mask API keys in query strings
+        - matchRegex: "(api_key=)([A-Za-z0-9\\-._~+/]{8,})"
+          replaceExpr: "`${g1}****${g2.slice(-4)}`"
+          fields:
+            - request_uri
+            - request_url
+            - _raw
+        # Mask Basic Auth credentials
+        - matchRegex: "(Basic\\s+)([A-Za-z0-9+/]+=*)"
+          replaceExpr: "`${g1}****${g2.slice(-4)}`"
+          fields:
+            - request.headers.authorization
+            - _raw
+
+  # ---------------------------------------------------------------
+  # Step 5: Calculate request size category
+  # ---------------------------------------------------------------
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: request_size_category
+          value: >-
+            request_size < 1024 ? 'tiny' :
+            request_size < 10240 ? 'small' :
+            request_size < 102400 ? 'medium' :
+            request_size < 1048576 ? 'large' :
+            'xlarge'
+        - name: response_size_category
+          value: >-
+            response_size < 1024 ? 'tiny' :
+            response_size < 10240 ? 'small' :
+            response_size < 102400 ? 'medium' :
+            response_size < 1048576 ? 'large' :
+            'xlarge'
+        - name: status_class
+          value: >-
+            response_status < 200 ? '1xx' :
+            response_status < 300 ? '2xx' :
+            response_status < 400 ? '3xx' :
+            response_status < 500 ? '4xx' :
+            '5xx'
+        - name: is_error
+          value: "response_status >= 500"
+
+  # ---------------------------------------------------------------
+  # Step 6: Drop health check requests (configurable)
+  # ---------------------------------------------------------------
+  - id: drop
+    filter: >-
+      C.vars.drop_health_checks !== false
+      && (
+        request_uri === '/health'
+        || request_uri === '/healthz'
+        || request_uri === '/ready'
+        || request_uri === '/readiness'
+        || request_uri === '/liveness'
+        || request_uri === '/status'
+        || (request.headers && request.headers['user-agent'] && request.headers['user-agent'].match(/kube-probe|health[-_]?check|ELB-HealthChecker|GoogleHC/i))
+      )
+    disabled: false
+    conf: {}
+
+  # ---------------------------------------------------------------
+  # Step 7: Add Cribl metadata
+  # ---------------------------------------------------------------
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: cribl_pipeline
+          value: "'kong-logs'"
+        - name: cribl_processed_at
+          value: "Date.now() / 1000"
+        - name: index
+          value: "'kong_access_logs'"
+        - name: sourcetype
+          value: "'kong:accesslog'"
+        - name: source
+          value: "'kong_http_log'"
+
+  # ---------------------------------------------------------------
+  # Step 8: Serialize back to JSON for downstream
+  # ---------------------------------------------------------------
+  - id: serde
+    filter: "true"
+    disabled: false
+    conf:
+      mode: reserialize
+      type: json
+      fields:
+        - "!request.headers.authorization"
+        - "!request.headers.cookie"
+        - "*"
+
+groups: {}
+
+output: default
+streamtags: []

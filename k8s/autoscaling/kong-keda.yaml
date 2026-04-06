@@ -1,0 +1,51 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: kong-keda
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: kong
+    app.kubernetes.io/component: autoscaling
+    app.kubernetes.io/part-of: api-gateway
+spec:
+  scaleTargetRef:
+    name: kong
+  minReplicaCount: 3
+  maxReplicaCount: 30
+  cooldownPeriod: 300
+  pollingInterval: 15
+  advanced:
+    restoreToOriginalReplicaCount: false
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 60
+          policies:
+            - type: Pods
+              value: 2
+              periodSeconds: 60
+        scaleDown:
+          stabilizationWindowSeconds: 300
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 120
+  triggers:
+    # Scale up when request rate exceeds 1000 rps
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-server.monitoring.svc.cluster.local:9090
+        metricName: kong_http_requests_per_second
+        query: |
+          sum(rate(kong_http_requests_total{namespace="api-gateway"}[2m]))
+        threshold: "1000"
+        activationThreshold: "500"
+    # Scale up when p99 latency exceeds 500ms
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-server.monitoring.svc.cluster.local:9090
+        metricName: kong_request_latency_p99
+        query: |
+          histogram_quantile(0.99, sum(rate(kong_request_latency_ms_bucket{namespace="api-gateway"}[2m])) by (le))
+        threshold: "500"
+        activationThreshold: "250"

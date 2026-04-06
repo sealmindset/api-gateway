@@ -1,0 +1,211 @@
+# Cribl Stream Main Configuration
+# API Gateway monitoring - worker settings, outputs, and global config
+
+cribl:
+  version: "4.4.0"
+  description: "API Gateway Monitoring - Cribl Stream"
+
+# =====================================================================
+# Distributed deployment settings
+# =====================================================================
+distributed:
+  mode: managed-edge
+  leader:
+    host: "${CRIBL_LEADER_HOST:-cribl-leader}"
+    port: 4200
+    authToken: "${CRIBL_LEADER_AUTH_TOKEN}"
+    tls:
+      disabled: false
+
+# =====================================================================
+# Worker process settings
+# =====================================================================
+api:
+  host: "0.0.0.0"
+  port: 9000
+  disabled: false
+  tls:
+    disabled: true
+
+worker:
+  processes: "${CRIBL_WORKER_PROCESSES:-auto}"
+  memLimit: "${CRIBL_WORKER_MEM_LIMIT:-2048}"
+  restartOnError: true
+
+# =====================================================================
+# Global settings
+# =====================================================================
+settings:
+  timezone: "UTC"
+  defaultPipelineId: ""
+  logLevel: "info"
+  maxFileSize: "10MB"
+  diskSpaceLimit: "5GB"
+
+# =====================================================================
+# Lookup files
+# =====================================================================
+lookups:
+  - id: subscribers
+    type: csv
+    fileInfo:
+      filename: /opt/cribl/lookups/subscribers.csv
+      description: "Subscriber/consumer metadata for enrichment"
+    reloadPeriodSec: 300
+
+  - id: geo_asn
+    type: mmdb
+    fileInfo:
+      filename: /opt/cribl/share/GeoLite2-City.mmdb
+      description: "MaxMind GeoIP database"
+
+# =====================================================================
+# Global variables (available in all pipelines as C.vars.*)
+# =====================================================================
+vars:
+  drop_health_checks: true
+  mask_sensitive_data: true
+  environment: "${ENVIRONMENT:-production}"
+  cluster_name: "${CLUSTER_NAME:-api-gateway}"
+
+# =====================================================================
+# Output Destinations
+# =====================================================================
+outputs:
+  # -------------------------------------------------------------------
+  # Splunk HEC (Hot tier - real-time indexing)
+  # -------------------------------------------------------------------
+  - id: splunk_hec
+    type: splunk_hec
+    disabled: false
+    systemFields:
+      - cribl_pipeline
+      - cribl_processed_at
+    conf:
+      url: "${SPLUNK_HEC_URL:-https://splunk-hec.internal:8088}"
+      token: "${SPLUNK_HEC_TOKEN}"
+      enableIndexFields: true
+      enableMultiMetrics: false
+      indexPrefix: ""
+      sourcetypePrefix: ""
+      loadBalanced: true
+      maxPayloadSizeKB: 4096
+      maxPayloadEvents: 500
+      flushPeriodSec: 1
+      compress: true
+      rejectUnauthorized: false
+      timeoutSec: 30
+      maxQueueSize: "1GB"
+      onBackpressure: block
+      concurrency: 5
+      pqEnabled: true
+      pqMaxFileSize: "1GB"
+      pqMaxSize: "5GB"
+      pqPath: "${CRIBL_HOME}/state/queues"
+      pqCompress: gzip
+
+  # -------------------------------------------------------------------
+  # Amazon S3 (Archive tier - long-term storage)
+  # -------------------------------------------------------------------
+  - id: s3_archive
+    type: s3
+    disabled: false
+    systemFields:
+      - cribl_pipeline
+      - cribl_processed_at
+    conf:
+      bucket: "${S3_ARCHIVE_BUCKET:-api-gateway-logs-archive}"
+      region: "${AWS_REGION:-us-east-1}"
+      awsAuthenticationMethod: auto
+      assumeRoleArn: "${S3_ROLE_ARN:-}"
+      stagePath: "${CRIBL_HOME}/state/s3-staging"
+      destPath: >-
+        `kong/${C.vars.environment}/${_time
+          ? new Date(_time * 1000).toISOString().slice(0, 10)
+          : new Date().toISOString().slice(0, 10)
+        }/${sourcetype || 'unknown'}/${_time
+          ? new Date(_time * 1000).toISOString().slice(11, 13)
+          : new Date().toISOString().slice(11, 13)
+        }`
+      partitionExpr: ""
+      format: json
+      compress: gzip
+      maxFileSizeMB: 32
+      maxFileOpenTimeSec: 300
+      maxFileIdleSec: 30
+      maxOpenFiles: 100
+      onBackpressure: block
+      addIdToStagePath: true
+      removeEmptyDirs: 5
+
+  # -------------------------------------------------------------------
+  # Prometheus Remote Write (Metrics)
+  # -------------------------------------------------------------------
+  - id: prometheus_remote_write
+    type: prometheus
+    disabled: false
+    conf:
+      url: "${PROMETHEUS_REMOTE_WRITE_URL:-http://prometheus:9090/api/v1/write}"
+      compress: true
+      concurrency: 3
+      maxPayloadSizeKB: 1024
+      flushPeriodSec: 10
+      extraHttpHeaders:
+        - name: "X-Scope-OrgID"
+          value: "api-gateway"
+      onBackpressure: drop
+      timeoutSec: 30
+      pqEnabled: false
+
+  # -------------------------------------------------------------------
+  # Alerting Webhook (for anomaly notifications)
+  # -------------------------------------------------------------------
+  - id: alerting_webhook
+    type: webhook
+    disabled: false
+    conf:
+      url: "${ALERTING_WEBHOOK_URL:-https://alertmanager:9093/api/v2/alerts}"
+      method: POST
+      format: json
+      headers:
+        - name: "Content-Type"
+          value: "application/json"
+      compress: false
+      concurrency: 2
+      maxPayloadSizeKB: 256
+      flushPeriodSec: 5
+      timeoutSec: 10
+      onBackpressure: drop
+      pqEnabled: false
+
+# =====================================================================
+# Notifications (Cribl internal alerting)
+# =====================================================================
+notifications:
+  targets:
+    - id: slack_ops
+      type: webhook
+      url: "${SLACK_WEBHOOK_URL}"
+      method: POST
+
+  rules:
+    - id: pipeline_error
+      description: "Alert on pipeline processing errors"
+      condition: "__cribl_error != null"
+      target: slack_ops
+      throttleSec: 300
+
+    - id: backpressure
+      description: "Alert when outputs experience backpressure"
+      condition: "__cribl_backpressure === true"
+      target: slack_ops
+      throttleSec: 600
+
+# =====================================================================
+# Metrics (Cribl internal metrics)
+# =====================================================================
+monitoring:
+  internal:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8125

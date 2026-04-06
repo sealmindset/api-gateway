@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-autoscaler-config
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: cluster-autoscaler
+    app.kubernetes.io/part-of: api-gateway
+data:
+  # Cluster autoscaler parameters for the api-gateway workloads.
+  # Apply these as arguments to the cluster-autoscaler deployment.
+  parameters: |
+    --balance-similar-node-groups=true
+    --skip-nodes-with-local-storage=false
+    --skip-nodes-with-system-pods=true
+    --scale-down-enabled=true
+    --scale-down-delay-after-add=10m
+    --scale-down-delay-after-delete=1m
+    --scale-down-delay-after-failure=3m
+    --scale-down-unneeded-time=10m
+    --scale-down-utilization-threshold=0.5
+    --max-graceful-termination-sec=600
+    --expander=least-waste
+    --max-node-provision-time=15m
+    --max-nodes-total=50
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: api-gateway-high
+  labels:
+    app.kubernetes.io/part-of: api-gateway
+value: 1000000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: "High priority for api-gateway Kong proxy pods"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: api-gateway-medium
+  labels:
+    app.kubernetes.io/part-of: api-gateway
+value: 500000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: "Medium priority for api-gateway admin panel pods"
