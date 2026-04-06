@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -15,12 +15,13 @@ class Settings(BaseSettings):
 
     # --- Application ---
     app_name: str = "API Gateway Admin Panel"
-    app_secret_key: str = Field(..., description="Secret key for session signing and CSRF")
+    environment: str = "development"
+    secret_key: str = Field("change-me-in-production", description="Secret key for session signing and CSRF")
     debug: bool = False
 
     # --- Database (PostgreSQL + asyncpg) ---
     database_url: str = Field(
-        ...,
+        "postgresql://api_gateway_admin:admin_local_dev@localhost:5432/api_gateway_admin",
         description="PostgreSQL DSN, e.g. postgresql+asyncpg://user:pass@host:5432/dbname",
     )
     db_pool_min_size: int = 5
@@ -28,9 +29,9 @@ class Settings(BaseSettings):
     db_echo: bool = False
 
     # --- Microsoft Entra ID (Azure AD) OIDC ---
-    entra_tenant_id: str = Field(..., description="Azure AD tenant ID")
-    entra_client_id: str = Field(..., description="Application (client) ID")
-    entra_client_secret: str = Field(..., description="Client secret value")
+    entra_tenant_id: str = Field("not-configured", description="Azure AD tenant ID")
+    entra_client_id: str = Field("not-configured", description="Application (client) ID")
+    entra_client_secret: str = Field("not-configured", description="Client secret value")
     entra_redirect_uri: str = Field(
         "http://localhost:8000/auth/callback",
         description="OAuth2 redirect URI registered in Entra ID",
@@ -115,7 +116,11 @@ class Settings(BaseSettings):
     )
 
     # --- CORS ---
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+    cors_origins: str = "http://localhost:3000,http://localhost:8000"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [s.strip() for s in self.cors_origins.split(",") if s.strip()]
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "case_sensitive": False}
 

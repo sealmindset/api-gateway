@@ -189,13 +189,25 @@ wait_for_healthy "postgres" 30
 wait_for_healthy "redis" 20
 wait_for_healthy "kong" 45
 wait_for_healthy "admin-panel" 45
+wait_for_healthy "frontend" 45
 wait_for_healthy "prometheus" 20
 wait_for_healthy "grafana" 20
 
 echo ""
 
 # ---------------------------------------------------------------------------
-# Step 5: Seed default data
+# Step 5: Import Kong declarative config
+# ---------------------------------------------------------------------------
+log_info "Importing Kong declarative config..."
+if docker compose exec -T kong kong config db_import /etc/kong/kong.yml 2>/dev/null; then
+    log_success "Kong config imported"
+else
+    log_warn "Kong config import skipped (may already exist)"
+fi
+echo ""
+
+# ---------------------------------------------------------------------------
+# Step 6: Seed default data
 # ---------------------------------------------------------------------------
 log_info "Seeding default admin user..."
 
@@ -248,7 +260,7 @@ log_success "Default data seeded"
 echo ""
 
 # ---------------------------------------------------------------------------
-# Step 6: Print access URLs
+# Step 7: Print access URLs
 # ---------------------------------------------------------------------------
 echo "============================================="
 echo "  Local Development Environment Ready!"
@@ -256,16 +268,17 @@ echo "============================================="
 echo ""
 echo "  Service URLs:"
 echo "  -------------------------------------------"
-echo -e "  Kong Proxy:      ${GREEN}http://localhost:${KONG_PROXY_PORT:-8000}${NC}"
-echo -e "  Kong Admin API:  ${GREEN}http://localhost:${KONG_ADMIN_PORT:-8001}${NC}"
-echo -e "  Admin Panel:     ${GREEN}http://localhost:${ADMIN_PANEL_PORT:-8080}${NC}"
-echo -e "  Prometheus:      ${GREEN}http://localhost:${PROMETHEUS_PORT:-9090}${NC}"
-echo -e "  Grafana:         ${GREEN}http://localhost:${GRAFANA_PORT:-3000}${NC}"
-echo -e "  Cribl Stream:    ${GREEN}http://localhost:${CRIBL_PORT:-9420}${NC}"
+echo -e "  Admin UI:        ${GREEN}http://localhost:${FRONTEND_PORT:-3000}${NC}"
+echo -e "  Admin Panel API: ${GREEN}http://localhost:${ADMIN_PANEL_PORT:-8880}${NC}"
+echo -e "  Kong Proxy:      ${GREEN}http://localhost:${KONG_PROXY_PORT:-8800}${NC}"
+echo -e "  Kong Admin API:  ${GREEN}http://localhost:${KONG_ADMIN_PORT:-8801}${NC}"
+echo -e "  Prometheus:      ${GREEN}http://localhost:${PROMETHEUS_PORT:-9190}${NC}"
+echo -e "  Grafana:         ${GREEN}http://localhost:${GRAFANA_PORT:-3200}${NC}"
+echo -e "  Cribl Stream:    ${GREEN}http://localhost:${CRIBL_PORT:-9421}${NC}"
 echo ""
 echo "  Database:"
 echo "  -------------------------------------------"
-echo -e "  PostgreSQL:      ${GREEN}localhost:${POSTGRES_PORT:-5432}${NC}"
+echo -e "  PostgreSQL:      ${GREEN}localhost:${POSTGRES_PORT:-5434}${NC}"
 echo -e "  Redis:           ${GREEN}localhost:${REDIS_PORT:-6380}${NC}"
 echo ""
 echo "  AI Provider:"
@@ -297,6 +310,7 @@ echo -e "  exposing any services externally.${NC}"
 echo ""
 echo "  Useful commands:"
 echo "  -------------------------------------------"
+echo "  docker compose logs -f frontend    # Follow frontend logs"
 echo "  docker compose logs -f kong        # Follow Kong logs"
 echo "  docker compose logs -f admin-panel # Follow admin panel logs"
 echo "  docker compose ps                  # Check service status"

@@ -307,6 +307,41 @@ class PaginatedResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# AI Prompts
+# ---------------------------------------------------------------------------
+
+class AIPromptBase(BaseModel):
+    slug: str = Field(..., max_length=100, description="URL-safe unique identifier")
+    name: str = Field(..., max_length=255, description="Human-friendly display name")
+    category: str = Field(..., description="anomaly, rate_limit, routing, transform, documentation")
+    system_prompt: str = Field(..., description="System prompt template text")
+    model: Optional[str] = Field(None, max_length=100, description="Optional model override")
+    temperature: float = Field(0.3, ge=0.0, le=2.0)
+    max_tokens: int = Field(4096, ge=1, le=128000)
+    is_active: bool = True
+
+
+class AIPromptCreate(AIPromptBase):
+    pass
+
+
+class AIPromptRead(AIPromptBase, OrmModel):
+    id: uuid.UUID
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class AIPromptUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=255)
+    system_prompt: Optional[str] = None
+    model: Optional[str] = Field(None, max_length=100)
+    temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
+    max_tokens: Optional[int] = Field(None, ge=1, le=128000)
+    is_active: Optional[bool] = None
+
+
+# ---------------------------------------------------------------------------
 # Forward-ref resolution
 # ---------------------------------------------------------------------------
 CurrentUser.model_rebuild()

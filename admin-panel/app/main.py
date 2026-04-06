@@ -72,7 +72,7 @@ def create_app() -> FastAPI:
     # -- Middleware ----------------------------------------------------------
     app.add_middleware(
         SessionMiddleware,
-        secret_key=settings.app_secret_key,
+        secret_key=settings.secret_key,
         session_cookie="admin_session",
         max_age=3600,  # 1 hour
         same_site="lax",
@@ -81,7 +81,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

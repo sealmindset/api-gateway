@@ -207,6 +207,36 @@ services:
       start_period: 20s
 
   # ---------------------------------------------------------------------------
+  # Frontend - Next.js Admin UI
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: api-gw-frontend
+    restart: unless-stopped
+    environment:
+      KONG_ADMIN_URL: "http://kong:8001"
+      ADMIN_API_URL: "http://admin-panel:8080"
+    volumes:
+      - ./frontend/src:/app/src:cached
+      - ./frontend/public:/app/public:cached
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      admin-panel:
+        condition: service_healthy
+    networks:
+      - api-gateway-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
   # Prometheus - Metrics collection
   # ---------------------------------------------------------------------------
   prometheus:

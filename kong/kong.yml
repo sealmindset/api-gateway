@@ -77,9 +77,9 @@ plugins:
       method: POST
       timeout: 10000             # 10s timeout before giving up
       keepalive: 60000
-      retry_count: 3             # Retry failed deliveries up to 3 times
-      queue_size: 1000           # Buffer up to 1000 entries in memory
-      flush_timeout: 2           # Flush buffer every 2 seconds
+      queue:
+        max_batch_size: 1000       # Buffer up to 1000 entries in memory
+        max_retry_time: 60         # Retry for up to 60 seconds
       content_type: application/json
       custom_fields_by_lua:
         environment: "return os.getenv('KONG_ENVIRONMENT') or 'unknown'"
@@ -458,90 +458,12 @@ consumers:
 # =============================================================================
 # CONSUMER GROUPS
 # =============================================================================
-# Consumer groups enable tiered rate limiting. Assign consumers to groups
-# and configure per-group rate limits via the rate-limiting-advanced plugin
-# or by overriding the rate-limiting plugin configuration.
-
-consumer_groups:
-
-  # ---------------------------------------------------------------------------
-  # Free Tier - Minimal access for evaluation and development
-  # ---------------------------------------------------------------------------
-  - name: free
-    tags:
-      - tier
-      - free
-    consumers:
-      - username: free-tier-example
-    plugins:
-      - name: rate-limiting
-        config:
-          minute: 10
-          hour: 500
-          day: 5000
-          policy: local
-          fault_tolerant: true
-          hide_client_headers: false
-          error_code: 429
-          error_message: "Free tier rate limit exceeded. Upgrade your subscription for higher limits."
-
-  # ---------------------------------------------------------------------------
-  # Standard Tier - Production workloads with moderate throughput
-  # ---------------------------------------------------------------------------
-  - name: standard
-    tags:
-      - tier
-      - standard
-    plugins:
-      - name: rate-limiting
-        config:
-          minute: 60
-          hour: 5000
-          day: 50000
-          policy: local
-          fault_tolerant: true
-          hide_client_headers: false
-          error_code: 429
-          error_message: "Standard tier rate limit exceeded. Consider upgrading to premium."
-
-  # ---------------------------------------------------------------------------
-  # Premium Tier - High-throughput production workloads
-  # ---------------------------------------------------------------------------
-  - name: premium
-    tags:
-      - tier
-      - premium
-    consumers:
-      - username: partner-app-example
-    plugins:
-      - name: rate-limiting
-        config:
-          minute: 300
-          hour: 25000
-          day: 250000
-          policy: local
-          fault_tolerant: true
-          hide_client_headers: false
-          error_code: 429
-          error_message: "Premium tier rate limit exceeded. Contact support for enterprise limits."
-
-  # ---------------------------------------------------------------------------
-  # Enterprise Tier - Highest throughput for strategic partners
-  # ---------------------------------------------------------------------------
-  - name: enterprise
-    tags:
-      - tier
-      - enterprise
-    consumers:
-      - username: internal-service-example
-    plugins:
-      - name: rate-limiting
-        config:
-          minute: 1000
-          hour: 100000
-          day: 1000000
-          policy: local
-          fault_tolerant: true
-          hide_client_headers: false
-          error_code: 429
-          error_message: "Enterprise tier rate limit exceeded. Contact your account manager."
+# Consumer groups for tiered rate limiting are configured via the Admin API
+# in DB mode. The consumer_groups declarative field is only available in
+# Kong Enterprise. In Community Edition, use the Admin API:
+#
+#   curl -s http://localhost:8001/consumer_groups -d name=free
+#   curl -s http://localhost:8001/consumer_groups/free/consumers \
+#        -d consumer=free-tier-example
+#
+# Tiers: free (10/min), standard (60/min), premium (300/min), enterprise (1000/min)

@@ -21,6 +21,8 @@ except ImportError:
     ANTHROPIC_AVAILABLE = False
 
 from .base import AIProvider
+from ..prompt_resolver import resolve_prompt
+# Hardcoded imports retained as fallback for sync contexts
 from ..prompts import (
     ANOMALY_DETECTION_SYSTEM_PROMPT,
     RATE_LIMIT_ADVISOR_SYSTEM_PROMPT,
@@ -209,6 +211,16 @@ class ClaudeProvider(AIProvider):
     # Internal helpers
     # ------------------------------------------------------------------
 
+    async def _resolve_prompt(self, slug: str, fallback: str) -> str:
+        """Resolve a prompt from the DB, falling back to the hardcoded constant."""
+        try:
+            resolved = await resolve_prompt(slug)
+            if resolved:
+                return resolved
+        except Exception as exc:
+            logger.warning("Prompt resolution failed for '%s': %s", slug, exc)
+        return fallback
+
     async def _call_api_with_retry(self, **kwargs: Any) -> Any:
         """
         Execute a Claude API call with retry logic for rate limits
@@ -290,12 +302,13 @@ class ClaudeProvider(AIProvider):
         """Analyze an incoming API request for patterns and classify intent."""
         sanitized = self._sanitize_input(json.dumps(request_data, default=str))
         masked, pii_map = self._mask_pii(sanitized)
+        system_prompt = await self._resolve_prompt("request-analysis", REQUEST_ANALYSIS_SYSTEM_PROMPT)
 
         response = await self._call_api_with_retry(
             model=self.model,
             max_tokens=self.max_tokens,
             temperature=0.2,
-            system=REQUEST_ANALYSIS_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": masked}],
         )
 
@@ -320,12 +333,13 @@ class ClaudeProvider(AIProvider):
             "baseline": historical_baseline,
         }
         sanitized = self._sanitize_input(json.dumps(payload, default=str))
+        system_prompt = await self._resolve_prompt("anomaly-detection", ANOMALY_DETECTION_SYSTEM_PROMPT)
 
         response = await self._call_api_with_retry(
             model=self.model,
             max_tokens=self.max_tokens,
             temperature=0.0,  # deterministic for security decisions
-            system=ANOMALY_DETECTION_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": sanitized}],
         )
 
@@ -356,12 +370,13 @@ class ClaudeProvider(AIProvider):
             "current_limits": current_limits,
         }
         sanitized = self._sanitize_input(json.dumps(payload, default=str))
+        system_prompt = await self._resolve_prompt("rate-limit-advisor", RATE_LIMIT_ADVISOR_SYSTEM_PROMPT)
 
         response = await self._call_api_with_retry(
             model=self.model,
             max_tokens=self.max_tokens,
             temperature=0.0,  # deterministic for rate-limit decisions
-            system=RATE_LIMIT_ADVISOR_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": sanitized}],
         )
 
@@ -388,12 +403,13 @@ class ClaudeProvider(AIProvider):
             "backend_health": backend_health,
         }
         sanitized = self._sanitize_input(json.dumps(payload, default=str))
+        system_prompt = await self._resolve_prompt("smart-routing", SMART_ROUTING_SYSTEM_PROMPT)
 
         response = await self._call_api_with_retry(
             model=self.model,
             max_tokens=self.max_tokens,
             temperature=0.3,  # allow some flexibility in routing
-            system=SMART_ROUTING_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": sanitized}],
         )
 
@@ -418,12 +434,13 @@ class ClaudeProvider(AIProvider):
         }
         sanitized = self._sanitize_input(json.dumps(payload, default=str))
         masked, pii_map = self._mask_pii(sanitized)
+        system_prompt = await self._resolve_prompt("request-transform", REQUEST_TRANSFORM_SYSTEM_PROMPT)
 
         response = await self._call_api_with_retry(
             model=self.model,
             max_tokens=self.max_tokens,
             temperature=0.2,
-            system=REQUEST_TRANSFORM_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": masked}],
         )
 
@@ -449,12 +466,13 @@ class ClaudeProvider(AIProvider):
         }
         sanitized = self._sanitize_input(json.dumps(payload, default=str))
         masked, pii_map = self._mask_pii(sanitized)
+        system_prompt = await self._resolve_prompt("response-transform", REQUEST_TRANSFORM_SYSTEM_PROMPT)
 
         response = await self._call_api_with_retry(
             model=self.model,
             max_tokens=self.max_tokens,
             temperature=0.2,
-            system=REQUEST_TRANSFORM_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": masked}],
         )
 
@@ -478,12 +496,13 @@ class ClaudeProvider(AIProvider):
             raw = str(openapi_spec_or_traffic_sample)
 
         sanitized = self._sanitize_input(raw)
+        system_prompt = await self._resolve_prompt("api-documentation", DOCUMENTATION_SYSTEM_PROMPT)
 
         response = await self._call_api_with_retry(
             model=self.model,
             max_tokens=min(self.max_tokens, 8192),  # docs can be long
             temperature=0.5,  # creative for documentation
-            system=DOCUMENTATION_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": sanitized}],
         )
 

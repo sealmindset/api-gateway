@@ -6,12 +6,15 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
+from decimal import Decimal
+
 from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     func,
@@ -35,8 +38,11 @@ async def init_db() -> None:
     """Create the async engine and session factory."""
     global engine, async_session_factory
     settings = get_settings()
+    db_url = settings.database_url
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
     engine = create_async_engine(
-        settings.database_url,
+        db_url,
         echo=settings.db_echo,
         pool_size=settings.db_pool_max_size,
         pool_pre_ping=True,
@@ -91,7 +97,10 @@ class User(Base):
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    user_roles: Mapped[list["UserRole"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    user_roles: Mapped[list["UserRole"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan",
+        foreign_keys="[UserRole.user_id]",
+    )
     audit_logs: Mapped[list["AuditLog"]] = relationship(back_populates="user")
 
 
@@ -245,3 +254,27 @@ class AuditLog(Base):
 
     # Relationships
     user: Mapped[Optional["User"]] = relationship(back_populates="audit_logs")
+
+
+class AIPrompt(Base):
+    """AI prompt template managed via the admin panel."""
+
+    __tablename__ = "ai_prompts"
+    __table_args__ = (
+        Index("ix_ai_prompts_category", "category"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False)
+    system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    temperature: Mapped[Decimal] = mapped_column(Numeric(2, 1), nullable=False, default=Decimal("0.3"))
+    max_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=4096)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

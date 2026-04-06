@@ -11,8 +11,11 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from sqlalchemy import select
+
 from app.middleware.rbac import require_permission
-from app.models.database import User
+from app.models.database import AIPrompt, User, get_db_session
+from app.models.schemas import AIPromptCreate, AIPromptRead, AIPromptUpdate
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -603,3 +606,106 @@ async def batch_analyze(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"AI batch analysis unavailable: {exc}",
         )
+
+
+# ---------------------------------------------------------------------------
+# Prompt Management CRUD
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/prompts",
+    response_model=list[AIPromptRead],
+    summary="List all AI prompts",
+)
+async def list_prompts(
+    category: Optional[str] = None,
+    session=Depends(get_db_session),
+):
+    """Return all prompt templates, optionally filtered by category."""
+    stmt = select(AIPrompt).order_by(AIPrompt.category, AIPrompt.name)
+    if category:
+        stmt = stmt.where(AIPrompt.category == category)
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
+@router.get(
+    "/prompts/{prompt_id}",
+    response_model=AIPromptRead,
+    summary="Get a single prompt",
+)
+async def get_prompt(
+    prompt_id: uuid.UUID,
+    session=Depends(get_db_session),
+):
+    """Return a single prompt by ID."""
+    result = await session.execute(select(AIPrompt).where(AIPrompt.id == prompt_id))
+    prompt = result.scalar_one_or_none()
+    if not prompt:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+    return prompt
+
+
+@router.post(
+    "/prompts",
+    response_model=AIPromptRead,
+    status_code=201,
+    summary="Create a new prompt",
+)
+async def create_prompt(
+    payload: AIPromptCreate,
+    _auth: User = Depends(require_permission("ai:analyze")),
+    session=Depends(get_db_session),
+):
+    """Create a new prompt template."""
+    existing = await session.execute(select(AIPrompt).where(AIPrompt.slug == payload.slug))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail=f"Prompt with slug '{payload.slug}' already exists")
+    prompt = AIPrompt(**payload.model_dump())
+    session.add(prompt)
+    await session.flush()
+    await session.refresh(prompt)
+    return prompt
+
+
+@router.put(
+    "/prompts/{prompt_id}",
+    response_model=AIPromptRead,
+    summary="Update a prompt",
+)
+async def update_prompt(
+    prompt_id: uuid.UUID,
+    payload: AIPromptUpdate,
+    _auth: User = Depends(require_permission("ai:analyze")),
+    session=Depends(get_db_session),
+):
+    """Update an existing prompt template. Increments the version number."""
+    result = await session.execute(select(AIPrompt).where(AIPrompt.id == prompt_id))
+    prompt = result.scalar_one_or_none()
+    if not prompt:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+    update_data = payload.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(prompt, key, value)
+    prompt.version += 1
+    await session.flush()
+    await session.refresh(prompt)
+    return prompt
+
+
+@router.delete(
+    "/prompts/{prompt_id}",
+    status_code=204,
+    summary="Delete a prompt",
+)
+async def delete_prompt(
+    prompt_id: uuid.UUID,
+    _auth: User = Depends(require_permission("ai:analyze")),
+    session=Depends(get_db_session),
+):
+    """Delete a prompt template."""
+    result = await session.execute(select(AIPrompt).where(AIPrompt.id == prompt_id))
+    prompt = result.scalar_one_or_none()
+    if not prompt:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+    await session.delete(prompt)
