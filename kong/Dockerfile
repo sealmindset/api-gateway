@@ -213,8 +213,8 @@ ENV KONG_LOG_LEVEL=info
 ENV KONG_SSL_CERT=/etc/kong/ssl/server.crt
 ENV KONG_SSL_CERT_KEY=/etc/kong/ssl/server.key
 
-# DNS resolver (Docker embedded DNS)
-ENV KONG_DNS_RESOLVER=127.0.0.11:53
+# DNS resolver: leave unset so Docker/Kubernetes DNS is used automatically.
+# Override via KONG_DNS_RESOLVER env var if a custom resolver is needed.
 
 # Disable anonymous telemetry
 ENV KONG_ANONYMOUS_REPORTS=off

@@ -120,14 +120,14 @@ return {
           {
             request_transform_rules = {
               type = "string",
-              default = "",
+              required = false,
               description = "Natural-language rules for AI request transformation",
             },
           },
           {
             response_transform_rules = {
               type = "string",
-              default = "",
+              required = false,
               description = "Natural-language rules for AI response transformation",
             },
           },

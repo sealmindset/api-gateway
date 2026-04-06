@@ -31,9 +31,16 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_local_dev}
       POSTGRES_DB: postgres
+      # Passed to init.sh for user creation with matching passwords
+      KONG_PG_USER: ${KONG_PG_USER:-kong}
+      KONG_PG_PASSWORD: ${KONG_PG_PASSWORD:-kong_local_dev}
+      KONG_PG_DATABASE: ${KONG_PG_DATABASE:-kong}
+      ADMIN_DB_USER: ${ADMIN_DB_USER:-api_gateway_admin}
+      ADMIN_DB_PASSWORD: ${ADMIN_DB_PASSWORD:-admin_local_dev}
+      ADMIN_DB_NAME: ${ADMIN_DB_NAME:-api_gateway_admin}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./database/init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
       - ./database/migrations:/docker-entrypoint-initdb.d/migrations:ro
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -130,7 +137,7 @@ services:
       - "${KONG_PROXY_PORT:-8000}:8000"      # Proxy HTTP
       - "${KONG_PROXY_SSL_PORT:-8443}:8443"  # Proxy HTTPS
       - "${KONG_ADMIN_PORT:-8001}:8001"      # Admin API
-      - "8100:8100"                           # Prometheus metrics
+      - "${KONG_STATUS_PORT:-8100}:8100"      # Prometheus metrics
     depends_on:
       kong-migrations:
         condition: service_completed_successfully
