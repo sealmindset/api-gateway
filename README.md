@@ -1,18 +1,23 @@
 # API Gateway
 
-A centralized API Gateway built on Kong, with a FastAPI admin panel for managing subscribers, API keys, subscriptions, and rate limiting. Deployed on Azure Kubernetes Service (AKS) with Terraform-managed infrastructure.
+A centralized API Gateway built on Kong CE with an AI-powered intelligence layer using Claude (Anthropic). Features multi-authentication (OAuth2, API Key, Basic Auth), subscription management, and a FastAPI admin panel with OIDC via Entra ID and database-driven RBAC. The AI layer provides real-time anomaly detection, intelligent rate limiting, smart routing, request/response transformation, and auto-documentation generation. Deployed on Azure Kubernetes Service (AKS) with Terraform-managed infrastructure, horizontal autoscaling via HPA/KEDA, and full observability through Prometheus, Grafana, and Cribl Stream.
 
 ## Architecture Overview
 
 ```
-                    Internet
-                       |
-                 [Azure LB / Ingress]
-                       |
-              +--------+--------+
-              |                 |
-         [Kong Gateway]   [Admin Panel]
-              |                 |
+                         Internet
+                            |
+                      [Azure LB / Ingress]
+                            |
+                   +--------+--------+
+                   |                 |
+              [Kong Gateway]   [Admin Panel]
+                   |                 |
+            [AI Gateway Plugin] [AI Provider Layer]
+                   |                 |
+                   +---[ Claude ]----+
+                   |    (Anthropic / Azure AI Foundry)
+                   |
               +--------+--------+
               |        |        |
          [PostgreSQL] [Redis]  [Monitoring]
@@ -26,13 +31,15 @@ A centralized API Gateway built on Kong, with a FastAPI admin panel for managing
 
 | Component | Purpose |
 |---|---|
-| **Kong Gateway** | API proxy with rate limiting, authentication, request transformation |
-| **Admin Panel** | FastAPI app for managing subscribers, API keys, plans, and subscriptions |
-| **PostgreSQL 16** | Primary datastore for Kong and the admin panel (separate databases) |
-| **Redis 7** | Rate limiting backend, session cache, and distributed locking |
-| **Prometheus** | Metrics collection from Kong and admin panel |
-| **Grafana** | Dashboards for API traffic, rate limiting, and system health |
-| **Cribl Stream** | Log routing, transformation, and forwarding |
+| **Kong Gateway** | API proxy with multi-auth (OAuth2, API Key, Basic Auth), rate limiting, request transformation |
+| **AI Gateway Plugin** | Kong Lua plugin that invokes Claude for real-time anomaly detection, smart routing, and request/response transformation |
+| **AI Provider Layer** | Async Python layer using Anthropic SDK (`AsyncAnthropic`) with DOE self-annealing, failover, and cost tracking |
+| **Admin Panel** | FastAPI app with OIDC (Entra ID), database-driven RBAC, subscriber management, and AI management endpoints |
+| **PostgreSQL 16** | Primary datastore for Kong, admin panel, and AI analysis results (separate databases) |
+| **Redis 7** | Rate limiting backend, session cache, RBAC permission cache, and AI result caching |
+| **Prometheus** | Metrics collection from Kong, admin panel, and AI layer |
+| **Grafana** | 5 dashboards: gateway overview, authentication, rate limiting, infrastructure, and AI layer |
+| **Cribl Stream** | Log routing with 4 pipelines: Kong logs, auth events, rate limit metrics, and AI events |
 
 ## Prerequisites
 
@@ -134,6 +141,228 @@ For third-party integrations (configured per-route):
 ```bash
 curl -H "Authorization: Bearer <oauth-access-token>" https://api-gateway.example.com/api/v1/resource
 ```
+
+## AI-Powered Intelligence Layer
+
+The gateway includes a Claude-powered AI layer that provides real-time intelligence capabilities inline with the request pipeline. The AI layer supports both **Azure AI Foundry** (default) and **direct Anthropic API** as providers.
+
+### AI Capabilities
+
+| Capability | Description | Kong Plugin Phase |
+|---|---|---|
+| **Anomaly Detection** | Analyzes request patterns and metrics against historical baselines. Returns anomaly score (0-1) with recommended action (allow/throttle/block/alert). | `access` |
+| **Intelligent Rate Limiting** | Suggests optimal per-consumer rate limits based on usage history, traffic patterns, and subscription tier. | API endpoint |
+| **Smart Routing** | Selects the optimal backend based on request content, backend health, latency, and capacity. | `access` |
+| **Request Transformation** | Transforms request bodies using natural language rules (e.g., "convert XML to JSON", "add correlation headers"). | `access` |
+| **Response Transformation** | Transforms response bodies before returning to the client. | `body_filter` |
+| **Auto-Documentation** | Generates API documentation from OpenAPI specs or captured traffic samples. | API endpoint |
+
+### Architecture
+
+```
+Client Request
+      |
+  [Kong Gateway]
+      |
+  [ai-gateway plugin]  ──sampling rate (default 10%)──>  [Admin Panel AI API]
+      |                                                          |
+      |                                                   [AI Provider Layer]
+      |                                                          |
+      |                                              ┌───────────┴───────────┐
+      |                                              |                       |
+      |                                    [Anthropic Foundry]     [Direct Anthropic]
+      |                                    (Azure AI endpoint)     (api.anthropic.com)
+      |                                              |                       |
+      |                                              └───────────┬───────────┘
+      |                                                          |
+      |  <──── anomaly score, routing decision, transforms ──────┘
+      |
+  [Upstream Service]
+```
+
+### AI Provider Configuration
+
+The AI layer defaults to **Azure AI Foundry** (`anthropic_foundry`). A single `ANTHROPIC_API_KEY` works for both providers.
+
+| Variable | Description | Default |
+|---|---|---|
+| `AI_PROVIDER` | Provider selection | `anthropic_foundry` |
+| `ANTHROPIC_API_KEY` | API key (used by both providers) | — |
+| `AZURE_AI_FOUNDRY_ENDPOINT` | Azure AI Foundry endpoint URL | — |
+| `AZURE_AI_FOUNDRY_API_KEY` | Optional separate foundry key (falls back to `ANTHROPIC_API_KEY`) | — |
+| `ANTHROPIC_MODEL` | Model/deployment name | `cogdep-aifoundry-dev-eus2-claude-sonnet-4-5` |
+| `AI_MAX_COST_PER_ANALYSIS` | Budget ceiling per analysis (USD) | `0.50` |
+| `AI_SAMPLING_RATE` | Fraction of requests analyzed (0.0-1.0) | `0.1` |
+
+**Azure AI Foundry (default):**
+
+```bash
+AI_PROVIDER=anthropic_foundry
+ANTHROPIC_API_KEY=your-api-key
+AZURE_AI_FOUNDRY_ENDPOINT=https://your-endpoint.services.ai.azure.com
+ANTHROPIC_MODEL=cogdep-aifoundry-dev-eus2-claude-sonnet-4-5
+```
+
+**Direct Anthropic API:**
+
+```bash
+AI_PROVIDER=claude
+ANTHROPIC_API_KEY=sk-ant-your-key
+ANTHROPIC_MODEL=claude-sonnet-4-20250514
+```
+
+### AI API Endpoints
+
+All AI endpoints require authentication and RBAC permissions (`ai:*`).
+
+```bash
+# Detect anomalies in a request
+curl -X POST http://localhost:8080/ai/analyze \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "request_data": {"method": "POST", "path": "/api/v1/users", "headers": {}, "body": {}},
+    "metrics": {"request_rate": 150, "error_rate": 0.05, "avg_latency_ms": 200},
+    "baseline": {"avg_request_rate": 50, "avg_error_rate": 0.01}
+  }'
+
+# Get AI-suggested rate limits for a consumer
+curl -X POST http://localhost:8080/ai/rate-limit/suggest \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "consumer_id": "acme-corp",
+    "usage_history": [{"hour": "2024-01-01T00:00:00Z", "requests": 1200}],
+    "current_limits": {"per_second": 10, "per_minute": 200, "per_hour": 5000}
+  }'
+
+# Get smart routing decision
+curl -X POST http://localhost:8080/ai/route \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "request": {"method": "GET", "path": "/api/v1/search", "query": "complex query"},
+    "available_backends": [{"name": "primary", "url": "http://api-1:8080"}, {"name": "secondary", "url": "http://api-2:8080"}],
+    "backend_health": {"primary": {"healthy": true, "latency_ms": 50}, "secondary": {"healthy": true, "latency_ms": 200}}
+  }'
+
+# Transform a request body using natural language rules
+curl -X POST http://localhost:8080/ai/transform/request \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": {"user_name": "John", "user_email": "john@example.com"},
+    "transformation_rules": [{"rule": "Convert snake_case keys to camelCase"}, {"rule": "Add a timestamp field"}]
+  }'
+
+# Auto-generate API documentation from traffic samples
+curl -X POST http://localhost:8080/ai/documentation/generate \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "traffic_samples": [
+      {"request": {"method": "GET", "path": "/api/v1/users"}, "response": {"status": 200, "body": [{"id": 1, "name": "Alice"}]}},
+      {"request": {"method": "POST", "path": "/api/v1/users", "body": {"name": "Bob"}}, "response": {"status": 201}}
+    ]
+  }'
+
+# Batch analyze multiple requests
+curl -X POST http://localhost:8080/ai/anomaly/batch \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"requests": [...]}'
+
+# Check AI layer health
+curl http://localhost:8080/ai/health
+
+# View AI configuration
+curl -H "Authorization: Bearer <token>" http://localhost:8080/ai/config
+```
+
+### Kong AI Gateway Plugin
+
+The `ai-gateway` Kong plugin runs inline with the request pipeline. Configuration per-service or per-route:
+
+```bash
+# Enable AI gateway plugin on a service
+curl -X POST http://localhost:8001/services/my-service/plugins \
+  -d "name=ai-gateway" \
+  -d "config.enable_anomaly_detection=true" \
+  -d "config.enable_smart_routing=false" \
+  -d "config.anomaly_threshold=0.7" \
+  -d "config.sampling_rate=0.1" \
+  -d "config.fail_open=true" \
+  -d "config.timeout=5000"
+```
+
+| Config | Type | Default | Description |
+|---|---|---|---|
+| `enable_anomaly_detection` | boolean | `true` | Analyze requests for anomalies |
+| `enable_smart_routing` | boolean | `false` | AI-driven backend selection |
+| `enable_request_transform` | boolean | `false` | AI-powered request transformation |
+| `enable_response_transform` | boolean | `false` | AI-powered response transformation |
+| `anomaly_threshold` | number | `0.7` | Score above which to take action (0-1) |
+| `sampling_rate` | number | `0.1` | Fraction of requests to analyze |
+| `fail_open` | boolean | `true` | Allow requests through if AI is unavailable |
+| `timeout` | integer | `5000` | AI endpoint timeout in ms |
+| `cache_ttl` | integer | `60` | Cache AI results for this many seconds |
+
+**Response headers added by the plugin:**
+
+- `X-AI-Anomaly-Score` -- Anomaly score (0-1) when anomaly detection is active
+- `X-AI-Route-Decision` -- Selected backend when smart routing is active
+- `X-AI-Analysis-Id` -- Unique ID for the AI analysis (for debugging)
+- `X-AI-Status` -- `available` or `unavailable` (when AI endpoint is down and fail_open=true)
+
+### AI Resilience Features
+
+- **DOE Self-Annealing** -- Automatically detects and corrects invalid model configurations at runtime
+- **Exponential Backoff** -- Retries rate-limited requests with 5s/10s/20s delays
+- **Failover Provider** -- Optional wrapping with automatic failover to a secondary provider
+- **Fail-Open** -- When AI is unavailable, requests pass through with `X-AI-Status: unavailable`
+- **Sampling** -- Only analyzes a configurable fraction of requests (default 10%) to control costs
+- **Cost Budget** -- Per-analysis cost ceiling ($0.50 default) prevents runaway spending
+- **PII Masking** -- Sensitive data is masked before sending to AI and unmasked in responses
+
+### AI RBAC Permissions
+
+| Permission | Roles | Description |
+|---|---|---|
+| `ai:read` | all roles | View AI config and health |
+| `ai:analyze` | super_admin, admin, operator | Run anomaly detection |
+| `ai:rate-limit` | super_admin, admin, operator | Get rate limit suggestions |
+| `ai:route` | super_admin, admin | Get routing decisions |
+| `ai:transform` | super_admin, admin | Run request/response transforms |
+| `ai:documentation` | super_admin, admin | Generate API documentation |
+
+### AI Monitoring
+
+The AI layer has its own Grafana dashboard (**AI Layer**) and Prometheus metrics:
+
+| Metric | Description |
+|---|---|
+| `ai_gateway_analyses_total` | Total AI analyses by type, provider, model |
+| `ai_gateway_anomaly_score` | Anomaly score distribution |
+| `ai_gateway_latency_ms` | AI analysis latency |
+| `ai_gateway_cost_usd_total` | Cumulative AI cost in USD |
+| `ai_gateway_tokens_total` | Token usage (input/output) |
+
+**AI-specific alerts:**
+- `AIProviderDown` -- AI endpoint returning errors for > 5 min
+- `AIHighLatency` -- AI analysis p99 > 3s
+- `AIAnomalySpike` -- Anomaly detection rate > 10/min
+- `AICostBudgetWarning` -- Hourly AI cost > $5
+- `AICostBudgetCritical` -- Hourly AI cost > $20
+
+### AI Database Tables
+
+| Table | Purpose |
+|---|---|
+| `ai_analyses` | Cached analysis results with cost/token tracking |
+| `ai_anomaly_events` | Anomaly event log with scores and actions |
+| `ai_rate_limit_suggestions` | AI rate limit suggestion history (applied/ignored) |
+| `ai_documentation` | Auto-generated documentation versions |
+| `ai_prompts` | Managed prompt templates (3-tier resolution: Redis -> DB -> seed) |
 
 ## Subscription Management
 
@@ -255,10 +484,11 @@ Kong exposes metrics at `:8100/metrics`. Key metrics:
 
 Pre-provisioned dashboards are available at http://localhost:3000:
 
-- **API Gateway Overview** - Traffic, latency, error rates
-- **Rate Limiting** - Rate limit hits by consumer and plan
-- **Upstream Health** - Backend service health and response times
-- **Admin Panel** - Application metrics and database performance
+- **Gateway Overview** -- Traffic, latency, error rates, active consumers
+- **Authentication** -- Auth success/failure by method, suspicious activity
+- **Rate Limiting** -- Rate limit violations by consumer/tier, rejection rates
+- **Infrastructure** -- Pod CPU/memory, HPA status, database/Redis health
+- **AI Layer** -- AI analysis rates, anomaly detection, cost tracking, latency
 
 ### Alerting
 
@@ -348,16 +578,27 @@ api-gateway/
 │       ├── deploy.yml                # Deploy pipeline (dev -> staging -> prod)
 │       └── pr-gate.yml               # PR merge requirements
 ├── admin-panel/                      # FastAPI admin application
-│   ├── app/                          # Application source code
-│   ├── tests/                        # Unit and integration tests
-│   ├── Dockerfile                    # Multi-stage container build
-│   ├── requirements.txt              # Production dependencies
-│   └── requirements-dev.txt          # Development/test dependencies
+│   ├── app/
+│   │   ├── ai/                       # AI-powered intelligence layer
+│   │   │   ├── agent.py              # AI agent factory
+│   │   │   ├── prompts.py            # System prompts for each capability
+│   │   │   ├── schemas.py            # Pydantic models for AI I/O
+│   │   │   └── providers/
+│   │   │       ├── base.py           # Abstract AI provider with cost tracking
+│   │   │       ├── claude.py         # Claude provider (AsyncAnthropic + DOE)
+│   │   │       ├── anthropic_foundry.py  # Azure AI Foundry variant
+│   │   │       └── failover.py       # Failover wrapping provider
+│   │   ├── middleware/               # OIDC auth + RBAC middleware
+│   │   ├── models/                   # SQLAlchemy models + Pydantic schemas
+│   │   └── routers/                  # API routes (auth, subscribers, ai, etc.)
+│   ├── Dockerfile                    # Multi-stage container build (dev + prod)
+│   └── requirements.txt              # Production dependencies
 ├── database/
 │   ├── init.sql                      # Database initialization
 │   └── migrations/
 │       ├── 001_initial_schema.sql    # Tables, indexes, default data
-│       └── 002_kong_sync_functions.sql # Sync functions and triggers
+│       ├── 002_kong_sync_functions.sql # Sync functions and triggers
+│       └── 003_ai_layer.sql          # AI tables, prompts, indexes
 ├── docker-compose.yml                # Local development stack
 ├── docker-compose.prod.yml           # Production overrides
 ├── k8s/                              # Kubernetes manifests
@@ -368,7 +609,10 @@ api-gateway/
 │       └── prod/
 ├── kong/                             # Kong configuration and plugins
 │   ├── Dockerfile                    # Custom Kong image
-│   └── plugins/                      # Custom Lua plugins
+│   └── plugins/
+│       ├── subscription-validator.lua  # Subscription validation plugin
+│       ├── ai-gateway.lua              # AI-powered gateway plugin
+│       └── ai-gateway-schema.lua       # AI gateway plugin schema
 ├── monitoring/
 │   ├── cribl/                        # Cribl Stream configuration
 │   ├── grafana/                      # Grafana dashboards and provisioning
