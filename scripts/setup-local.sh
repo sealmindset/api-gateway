@@ -268,6 +268,25 @@ echo "  -------------------------------------------"
 echo -e "  PostgreSQL:      ${GREEN}localhost:${POSTGRES_PORT:-5432}${NC}"
 echo -e "  Redis:           ${GREEN}localhost:${REDIS_PORT:-6380}${NC}"
 echo ""
+echo "  AI Provider:"
+echo "  -------------------------------------------"
+echo -e "  Provider:        ${GREEN}${AI_PROVIDER:-anthropic_foundry}${NC}"
+echo -e "  Model:           ${GREEN}${ANTHROPIC_MODEL:-cogdep-aifoundry-dev-eus2-claude-sonnet-4-5}${NC}"
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+    echo -e "  API Key:         ${GREEN}configured${NC}"
+else
+    echo -e "  API Key:         ${YELLOW}NOT SET -- set ANTHROPIC_API_KEY in .env${NC}"
+fi
+if [ "${AI_PROVIDER:-anthropic_foundry}" = "anthropic_foundry" ]; then
+    if [ -n "${AZURE_AI_FOUNDRY_ENDPOINT:-}" ]; then
+        echo -e "  Foundry Endpoint: ${GREEN}configured${NC}"
+    else
+        echo -e "  Foundry Endpoint: ${YELLOW}NOT SET -- set AZURE_AI_FOUNDRY_ENDPOINT in .env${NC}"
+    fi
+fi
+echo -e "  Sampling Rate:   ${GREEN}${AI_SAMPLING_RATE:-0.1}${NC}"
+echo -e "  Cost Ceiling:    ${GREEN}\$${AI_MAX_COST_PER_ANALYSIS:-0.50}/analysis${NC}"
+echo ""
 echo "  Default Credentials:"
 echo "  -------------------------------------------"
 echo "  Admin Panel:     admin@localhost / admin"

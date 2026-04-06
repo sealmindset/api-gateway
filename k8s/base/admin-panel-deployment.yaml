@@ -113,6 +113,25 @@ spec:
                 secretKeyRef:
                   name: admin-panel-secrets
                   key: DATABASE_PASSWORD
+            # AI / Claude configuration
+            - name: AI_PROVIDER
+              value: "anthropic_foundry"
+            - name: ANTHROPIC_MODEL
+              value: "cogdep-aifoundry-dev-eus2-claude-sonnet-4-5"
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: admin-panel-secrets
+                  key: ANTHROPIC_API_KEY
+            - name: AZURE_AI_FOUNDRY_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: admin-panel-secrets
+                  key: AZURE_AI_FOUNDRY_ENDPOINT
+            - name: AI_MAX_COST_PER_ANALYSIS
+              value: "0.50"
+            - name: AI_SAMPLING_RATE
+              value: "0.1"
           livenessProbe:
             httpGet:
               path: /healthz
@@ -168,3 +187,5 @@ stringData:
   OIDC_CLIENT_SECRET: "REPLACE_VIA_CI_CD"
   SESSION_SECRET: "REPLACE_VIA_CI_CD"
   DATABASE_PASSWORD: "REPLACE_VIA_CI_CD"
+  ANTHROPIC_API_KEY: "REPLACE_VIA_CI_CD"
+  AZURE_AI_FOUNDRY_ENDPOINT: "REPLACE_VIA_CI_CD"

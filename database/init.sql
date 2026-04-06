@@ -77,6 +77,7 @@ GRANT USAGE ON SCHEMA public TO api_gateway_readonly;
 -- Run migrations in order
 \i /docker-entrypoint-initdb.d/migrations/001_initial_schema.sql
 \i /docker-entrypoint-initdb.d/migrations/002_kong_sync_functions.sql
+\i /docker-entrypoint-initdb.d/migrations/003_ai_layer.sql
 
 -- Grant read-only access to the readonly user on all existing tables
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO api_gateway_readonly;
@@ -103,6 +104,12 @@ BEGIN
     ASSERT (SELECT COUNT(*) FROM information_schema.tables
             WHERE table_schema = 'public' AND table_name = 'plans') = 1,
         'Table "plans" not found';
+    ASSERT (SELECT COUNT(*) FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = 'ai_analyses') = 1,
+        'Table "ai_analyses" not found';
+    ASSERT (SELECT COUNT(*) FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = 'ai_prompts') = 1,
+        'Table "ai_prompts" not found';
 
     -- Verify default data
     ASSERT (SELECT COUNT(*) FROM roles WHERE is_system = TRUE) = 4,

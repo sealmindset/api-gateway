@@ -87,7 +87,7 @@ services:
       KONG_ADMIN_ACCESS_LOG: "off"
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       # Plugins
-      KONG_PLUGINS: "bundled,custom-auth,subscriber-rate-limit"
+      KONG_PLUGINS: "bundled,subscription-validator,ai-gateway"
       # Prometheus metrics
       KONG_STATUS_LISTEN: "0.0.0.0:8100"
       # Performance tuning
@@ -136,6 +136,19 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       ACCESS_TOKEN_EXPIRE_MINUTES: "30"
       CORS_ORIGINS: ${CORS_ORIGINS}
+      # AI / Claude
+      AI_PROVIDER: ${AI_PROVIDER:-anthropic_foundry}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-cogdep-aifoundry-dev-eus2-claude-sonnet-4-5}
+      AZURE_AI_FOUNDRY_ENDPOINT: ${AZURE_AI_FOUNDRY_ENDPOINT}
+      AZURE_AI_FOUNDRY_API_KEY: ${AZURE_AI_FOUNDRY_API_KEY:-}
+      AI_MAX_COST_PER_ANALYSIS: ${AI_MAX_COST_PER_ANALYSIS:-0.50}
+      AI_SAMPLING_RATE: ${AI_SAMPLING_RATE:-0.1}
+      # Entra ID OIDC
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID}
+      ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID}
+      ENTRA_CLIENT_SECRET: ${ENTRA_CLIENT_SECRET}
+      ENTRA_REDIRECT_URI: ${ENTRA_REDIRECT_URI}
     volumes: []  # No hot reload mounts in production
     deploy:
       resources:

@@ -23,7 +23,7 @@ data:
   KONG_PROXY_ACCESS_LOG: /dev/stdout
   KONG_PROXY_ERROR_LOG: /dev/stderr
   KONG_LOG_LEVEL: notice
-  KONG_PLUGINS: bundled,rate-limiting,cors,jwt,key-auth,prometheus,ip-restriction
+  KONG_PLUGINS: bundled,rate-limiting,cors,jwt,key-auth,prometheus,ip-restriction,subscription-validator,ai-gateway
   KONG_NGINX_WORKER_PROCESSES: "auto"
   KONG_UPSTREAM_KEEPALIVE_POOL_SIZE: "256"
   KONG_UPSTREAM_KEEPALIVE_MAX_REQUESTS: "10000"
