@@ -619,6 +619,7 @@ async def batch_analyze(
 )
 async def list_prompts(
     category: Optional[str] = None,
+    _auth: User = Depends(require_permission("ai:read")),
     session=Depends(get_db_session),
 ):
     """Return all prompt templates, optionally filtered by category."""
@@ -636,6 +637,7 @@ async def list_prompts(
 )
 async def get_prompt(
     prompt_id: uuid.UUID,
+    _auth: User = Depends(require_permission("ai:read")),
     session=Depends(get_db_session),
 ):
     """Return a single prompt by ID."""

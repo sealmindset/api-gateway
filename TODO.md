@@ -30,12 +30,10 @@
 
 ## Known Issues
 
-### AI Prompts Auth Gap
-- **Severity:** Medium
-- **Status:** Open
-- `/ai/prompts` endpoint allows unauthenticated access (returns 200 without auth)
-- Marked as `xfail` in `tests/integration/test_05_security.py`
-- Needs `require_permission("ai:read")` dependency added to AI router endpoints
+### ~~AI Prompts Auth Gap~~ DONE
+- **Status:** Fixed 2026-04-07
+- Added `require_permission("ai:read")` to GET `/ai/prompts` and GET `/ai/prompts/{prompt_id}`
+- Removed xfail marker from test; now asserts 401/403 for unauthenticated access
 
 ## Completed (2026-04-07)
 

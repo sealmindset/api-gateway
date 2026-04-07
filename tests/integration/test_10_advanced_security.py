@@ -211,14 +211,11 @@ class TestSessionSecurity:
             )
 
     def test_ai_prompts_requires_auth(self, unauthenticated_client):
-        """AI prompts endpoint should require authentication.
-
-        NOTE: This is currently a known gap -- the AI prompts list endpoint
-        does not enforce authentication. Marking as xfail until fixed.
-        """
+        """AI prompts endpoint should require authentication."""
         resp = unauthenticated_client.get("/ai/prompts")
-        # This SHOULD return 401/403 but currently returns 200
-        pytest.xfail("AI prompts endpoint does not enforce auth (known gap)")
+        assert resp.status_code in (401, 403), (
+            f"/ai/prompts returned {resp.status_code} without auth"
+        )
 
     def test_invalid_session_cookie_rejected(self, unauthenticated_client):
         """A forged session cookie should not grant access."""

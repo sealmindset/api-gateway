@@ -266,7 +266,7 @@ INSERT INTO roles (name, description, permissions) VALUES
         "users:read": true, "users:write": true,
         "gateway:read": true, "gateway:write": true,
         "audit:read": true,
-        "ai:analyze": true, "ai:rate-limit": true, "ai:route": true,
+        "ai:read": true, "ai:analyze": true, "ai:rate-limit": true, "ai:route": true,
         "ai:transform": true, "ai:documentation": true,
         "teams:read": true, "teams:write": true, "teams:delete": true,
         "api_registry:read": true, "api_registry:write": true,
@@ -284,7 +284,7 @@ INSERT INTO roles (name, description, permissions) VALUES
         "users:read": true,
         "gateway:read": true,
         "audit:read": true,
-        "ai:analyze": true, "ai:rate-limit": true,
+        "ai:read": true, "ai:analyze": true, "ai:rate-limit": true,
         "teams:read": true, "teams:write": true,
         "api_registry:read": true, "api_registry:write": true, "api_registry:approve": true
     }'
@@ -300,6 +300,7 @@ INSERT INTO roles (name, description, permissions) VALUES
         "users:read": true,
         "gateway:read": true,
         "audit:read": true,
+        "ai:read": true,
         "teams:read": true, "teams:write": true,
         "api_registry:read": true, "api_registry:write": true
     }'
@@ -315,6 +316,7 @@ INSERT INTO roles (name, description, permissions) VALUES
         "users:read": true,
         "gateway:read": true,
         "audit:read": true,
+        "ai:read": true,
         "teams:read": true,
         "api_registry:read": true
     }'

@@ -20,8 +20,8 @@ class TestAIHealth:
 
     def test_ai_config(self, admin_session):
         resp = admin_session.get("/ai/config")
-        # 200 if user has ai:read, 403 if not in their permissions
-        assert resp.status_code in (200, 403)
+        # 200 if AI provider configured, 503 if not, 403 if missing permission
+        assert resp.status_code in (200, 403, 503)
 
 
 class TestPromptManagement:
