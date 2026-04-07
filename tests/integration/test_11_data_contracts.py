@@ -228,7 +228,7 @@ class TestPublicCatalog:
         _activate_api(admin_session, active_api["id"])
 
         client = httpx.Client(base_url=ADMIN_API, timeout=10)
-        resp = client.get("/public/api-catalog")
+        resp = client.get("/public/api-catalog", params={"page_size": 100})
         assert resp.status_code == 200
         slugs = [item["slug"] for item in resp.json()["items"]]
         assert active_api["slug"] in slugs
