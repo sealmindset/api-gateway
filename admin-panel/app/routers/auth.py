@@ -44,9 +44,15 @@ async def callback(
             content={"detail": "Authentication failed. Could not exchange code for token."},
         )
 
-    userinfo = token.get("userinfo")
-    if userinfo is None:
-        userinfo = await oauth.entra.userinfo(token=token)
+    userinfo = token.get("userinfo") or {}
+    # The id_token may not contain profile claims (email, name) — always
+    # fetch from the userinfo endpoint and merge to ensure completeness.
+    try:
+        endpoint_info = await oauth.entra.userinfo(token=token)
+        if endpoint_info:
+            userinfo = {**dict(userinfo), **dict(endpoint_info)}
+    except Exception:
+        logger.debug("Could not fetch userinfo endpoint; using id_token claims only")
 
     request.session["token"] = dict(token)
     request.session["userinfo"] = dict(userinfo)

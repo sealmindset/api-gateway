@@ -230,10 +230,11 @@ async def update_subscription(
     for field, value in update_data.items():
         setattr(subscription, field, value)
     await db.flush()
+    await db.refresh(subscription)
 
     await log_access(
         db, user=user, action="update", resource_type="subscription",
-        resource_id=str(subscription_id), details=update_data,
+        resource_id=str(subscription_id), details=body.model_dump(exclude_unset=True, mode="json"),
         ip_address=request.client.host if request.client else None,
     )
     return SubscriptionRead.model_validate(subscription)

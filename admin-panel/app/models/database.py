@@ -333,6 +333,40 @@ class ApiRegistration(Base):
     auth_type: Mapped[str] = mapped_column(String(32), nullable=False, default="key-auth")
     requires_approval: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
+    # Data Contract — Contacts
+    contact_primary_email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
+    contact_escalation_email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
+    contact_slack_channel: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    contact_pagerduty_service: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    contact_support_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Data Contract — SLAs
+    sla_uptime_target: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2), nullable=True)
+    sla_latency_p50_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    sla_latency_p95_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    sla_latency_p99_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    sla_error_budget_pct: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2), nullable=True)
+    sla_support_hours: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    # Data Contract — Change Management
+    deprecation_notice_days: Mapped[int] = mapped_column(Integer, nullable=False, default=90)
+    breaking_change_policy: Mapped[str] = mapped_column(String(64), nullable=False, default="semver")
+    versioning_scheme: Mapped[str] = mapped_column(String(32), nullable=False, default="url-path")
+    changelog_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Data Contract — Schema
+    openapi_spec_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    max_request_size_kb: Mapped[int] = mapped_column(Integer, nullable=False, default=128)
+    max_response_size_kb: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    # Caching
+    cache_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    cache_ttl_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
+    cache_methods: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True, default=lambda: ["GET", "HEAD"])
+    cache_content_types: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True, default=lambda: ["application/json"])
+    cache_vary_headers: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True, default=lambda: ["Accept"])
+    cache_bypass_on_auth: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
     # Workflow
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft", index=True)
     submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

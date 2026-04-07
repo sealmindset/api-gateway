@@ -77,6 +77,54 @@ Your API is now in **draft** status. It is not visible to consumers and nothing 
 
 ---
 
+## Step 2b: Set Up Your Data Contract
+
+Data contracts define the operational commitments for your API -- who to contact when things break, what latency and uptime targets you commit to, and how you manage changes. You can set these when you first register your API, or add them later via the dedicated contract endpoint.
+
+### Contact information
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Primary Contact Email** | On-call or team email for incidents | `oncall@team.com` |
+| **Escalation Email** | Escalation contact if primary is unresponsive | `escalation@team.com` |
+| **Slack Channel** | Alert channel for automated notifications | `#weather-api-alerts` |
+| **PagerDuty Service** | PagerDuty service key for incident routing | `PWEATHER01` |
+| **Support URL** | Link to a support page or runbook | `https://wiki.company.com/weather-api-runbook` |
+
+### SLA targets
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Uptime Target** | Target availability percentage (0-100) | `99.95` |
+| **P50 Latency (ms)** | Median response time target | `50` |
+| **P95 Latency (ms)** | 95th percentile latency target | `200` |
+| **P99 Latency (ms)** | 99th percentile latency target | `500` |
+| **Error Budget (%)** | Acceptable error rate percentage | `0.05` |
+| **Support Hours** | When your team is available for support | `24/7` or `business-hours-cst` |
+
+### Change management
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| **Deprecation Notice Days** | 90 | Minimum days notice before deprecating the API |
+| **Breaking Change Policy** | `semver` | How breaking changes are managed. Options: `semver`, `date-based`, `never-break`, `custom` |
+| **Versioning Scheme** | `url-path` | How API versions are communicated. Options: `url-path`, `header`, `query-param`, `content-type` |
+| **Changelog URL** | -- | Link to your API's changelog |
+| **OpenAPI Spec URL** | -- | Link to your machine-readable OpenAPI specification |
+
+### Request size limits
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| **Max Request Size (KB)** | 128 | Maximum allowed request body size. **Enforced in Kong** via the `request-size-limiting` plugin when the API is activated. |
+| **Max Response Size (KB)** | -- | Maximum expected response body size (informational) |
+
+### Updating contracts on active APIs
+
+Data contracts can be updated at **any time** -- even on active APIs -- without going through the review/approval workflow. Use the contract endpoint (`PATCH /api-registry/{id}/contract`) or the admin UI to update contact info, SLA targets, or other contract fields. If you change `max_request_size_kb` on an active API, the Kong plugin is updated automatically.
+
+---
+
 ## Step 3: Submit for Review
 
 When your draft API is ready:
@@ -223,6 +271,35 @@ A subscription links a subscriber to a plan. You can apply optional overrides at
 | **Enterprise** | 100        | 3,000      | 100,000    |
 
 These are starting points. Subscription-level overrides can adjust limits for individual subscribers when justified.
+
+---
+
+## Public API Catalog
+
+Subscribers and external consumers can browse available APIs and their data contracts at the **public catalog** endpoint. This is unauthenticated -- no login required.
+
+- **Browse all active APIs:** `GET /public/api-catalog`
+- **Search by name or slug:** `GET /public/api-catalog?search=weather`
+- **View a specific API's contract:** `GET /public/api-catalog/{slug}`
+
+The catalog shows:
+- API name, description, version, and gateway path
+- Authentication type and rate limits
+- Full data contract: contacts, SLA targets, change management policies
+- Documentation and OpenAPI spec links
+- Caching status (enabled/disabled, TTL)
+
+Internal fields (upstream URL, Kong IDs, reviewer info) are never exposed in the catalog.
+
+### Try It — Interactive API Testing
+
+If an API has an **OpenAPI Spec URL** configured in its data contract, subscribers can test it interactively:
+
+```
+GET /public/api-catalog/{slug}/try-it
+```
+
+This opens a Swagger UI page pre-configured with the API's specification and gateway URL. Enter your API key in the authorize dialog to make authenticated test requests directly through the gateway.
 
 ---
 

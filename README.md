@@ -401,6 +401,32 @@ curl -X POST http://localhost:8080/api/v1/api-keys \
   -d '{"subscriber_id": "<id>", "name": "Production Key"}'
 ```
 
+### Data Contracts
+
+Registered APIs support formal data contracts that define operational commitments:
+
+- **Contacts** -- Primary and escalation emails, Slack channels, PagerDuty service keys
+- **SLA targets** -- Uptime (e.g. 99.95%), latency percentiles (P50/P95/P99), error budgets, support hours
+- **Change management** -- Deprecation notice days, breaking change policy (semver, date-based, never-break), versioning scheme
+- **Schema** -- OpenAPI spec URL, max request/response size
+
+Contracts can be updated on active APIs without re-approval via `PATCH /api-registry/{id}/contract`. The `max_request_size_kb` field is enforced in Kong via the `request-size-limiting` plugin.
+
+### Public API Catalog
+
+Subscribers can discover available APIs and their contracts via the unauthenticated public catalog:
+
+```bash
+# List all active APIs
+curl http://localhost:8880/public/api-catalog
+
+# Search by name
+curl http://localhost:8880/public/api-catalog?search=weather
+
+# View a specific API's contract
+curl http://localhost:8880/public/api-catalog/weather-forecast-api
+```
+
 ### Kong Sync
 
 Changes in the admin panel are automatically synced to Kong via database notification triggers. For manual sync:
@@ -505,6 +531,10 @@ Key alerts:
 
 Cribl Stream collects logs from all services and routes them to configured destinations. Access the Cribl UI at http://localhost:9420 to configure log pipelines, filtering, and forwarding.
 
+### Azure Monitor Equivalence
+
+For teams currently using Azure Monitor (Application Insights, Log Analytics, Azure Alerts, Workbooks) with APIM, the observability stack in this platform provides equivalent or better capabilities at no additional licensing cost. See [Observability Comparison](docs/observability-comparison.md) for a detailed feature-by-feature mapping.
+
 ## Troubleshooting
 
 ### Kong not starting
@@ -590,7 +620,7 @@ api-gateway/
 │   │   │       └── failover.py       # Failover wrapping provider
 │   │   ├── middleware/               # OIDC auth + RBAC middleware
 │   │   ├── models/                   # SQLAlchemy models + Pydantic schemas
-│   │   └── routers/                  # API routes (auth, subscribers, ai, etc.)
+│   │   └── routers/                  # API routes (auth, subscribers, ai, public_catalog, etc.)
 │   ├── Dockerfile                    # Multi-stage container build (dev + prod)
 │   └── requirements.txt              # Production dependencies
 ├── database/
@@ -598,7 +628,9 @@ api-gateway/
 │   └── migrations/
 │       ├── 001_initial_schema.sql    # Tables, indexes, default data
 │       ├── 002_kong_sync_functions.sql # Sync functions and triggers
-│       └── 003_ai_layer.sql          # AI tables, prompts, indexes
+│       ├── 003_ai_layer.sql          # AI tables, prompts, indexes
+│       ├── 004_rbac_teams.sql        # RBAC and team tables
+│       └── 005_data_contracts.sql    # Data contract columns on api_registrations
 ├── docker-compose.yml                # Local development stack
 ├── docker-compose.prod.yml           # Production overrides
 ├── k8s/                              # Kubernetes manifests
@@ -626,7 +658,52 @@ api-gateway/
 │       ├── dev/
 │       ├── staging/
 │       └── prod/
+├── tests/                            # Integration test suite
+│   └── integration/
+│       ├── conftest.py               # Shared fixtures (admin/viewer sessions, Kong client)
+│       ├── test_01_health.py         # Health and readiness probes
+│       ├── test_02_auth.py           # OIDC auth and session management
+│       ├── test_03_rbac.py           # Role and permission management
+│       ├── test_04_teams_registry.py # Teams and API registration lifecycle
+│       ├── test_05_security.py       # Security headers, injection, auth enforcement
+│       ├── test_06_subscribers.py    # Subscriber and API key CRUD
+│       ├── test_07_gateway.py        # Kong gateway proxy operations
+│       ├── test_08_e2e_lifecycle.py  # End-to-end workflows (register→activate→verify)
+│       ├── test_09_rate_limits.py    # Plan tiers, subscription rate limits
+│       ├── test_10_advanced_security.py # IDOR, privilege escalation, header injection
+│       └── test_11_data_contracts.py # Data contracts, public catalog, Kong enforcement
 ├── .env.example                      # Environment variable template
 ├── .gitignore                        # Git ignore rules
 └── README.md                         # This file
 ```
+
+## Testing
+
+### Integration Test Suite
+
+The project includes 174 integration tests that run against the live Docker Compose stack.
+
+```bash
+# Run all tests
+cd tests
+python3 -m pytest integration/ -v --tb=short
+
+# Run specific test file
+python3 -m pytest integration/test_11_data_contracts.py -v
+
+# Run with summary
+python3 -m pytest integration/ -v --tb=short -q
+```
+
+**Test coverage areas:**
+- Health checks and readiness probes
+- OIDC authentication and session management
+- RBAC (role CRUD, permission enforcement, audit logging)
+- Team management and API registration lifecycle
+- Security (headers, injection prevention, CORS, null bytes)
+- Subscriber onboarding and API key management
+- Kong gateway proxy operations
+- End-to-end workflows (team → register → submit → approve → activate → verify Kong)
+- Plan tier rate limits and subscription overrides
+- Advanced security (IDOR, privilege escalation, header injection, mass assignment, resource enumeration)
+- Data contracts (CRUD, validation, public catalog, Kong enforcement, RBAC, audit)

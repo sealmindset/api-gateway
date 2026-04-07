@@ -199,6 +199,7 @@ async def update_team(
     if meta is not None:
         team.metadata_ = meta
     await db.flush()
+    await db.refresh(team)
 
     await log_access(
         db, user=user, action="update", resource_type="team",

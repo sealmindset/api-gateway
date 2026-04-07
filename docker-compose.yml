@@ -243,6 +243,13 @@ services:
       AI_SAMPLING_RATE: ${AI_SAMPLING_RATE:-0.1}
       # CORS
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
+      # Azure Emulators (populated when running with docker-compose.emulators.yml)
+      AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING:-}
+      AZURE_STORAGE_ACCOUNT_NAME: ${AZURE_STORAGE_ACCOUNT_NAME:-}
+      AZURE_STORAGE_ACCOUNT_KEY: ${AZURE_STORAGE_ACCOUNT_KEY:-}
+      AZURE_STORAGE_BLOB_ENDPOINT: ${AZURE_STORAGE_BLOB_ENDPOINT:-}
+      AZURE_KEYVAULT_URL: ${AZURE_KEYVAULT_URL:-}
+      AZURE_KEYVAULT_TOKEN_URL: ${AZURE_KEYVAULT_TOKEN_URL:-}
     volumes:
       # Hot reload: mount source code
       - ./admin-panel/app:/app/app:cached

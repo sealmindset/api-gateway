@@ -51,6 +51,8 @@ A self-service API Gateway platform that allows teams to:
 5. **Monitor their own API traffic** through Grafana dashboards scoped to their services
 6. **Receive automated OWASP security scans** (ZAP) against their API surfaces before and after activation
 7. **Manage subscribers and API keys** with per-consumer rate limit overrides
+8. **Define data contracts** on APIs -- contacts (who to call on failures), SLA targets (latency, uptime), change management policies (deprecation notice, versioning), and schema constraints (max request size, OpenAPI spec)
+9. **Browse a public API catalog** -- subscribers discover available APIs and their contracts without authentication
 
 ### Architecture Summary
 
@@ -218,6 +220,25 @@ You own DNS, load balancing, firewall rules, and VNet architecture. Your input d
 **NQ-4. WAF / DDoS placement.** Do you require Azure Front Door or Application Gateway with WAF in front of Kong, or is Kong's built-in rate limiting and auth sufficient for the initial deployment? If WAF is required, provide the Front Door profile or App Gateway name.
 
 **NQ-5. Load balancer health probes.** Kong exposes a status endpoint on port 8100 (`/status`). The admin panel exposes `/health` (liveness) and `/ready` (readiness, checks DB + Redis). Do your load balancer health probe configurations have specific interval, timeout, or threshold requirements?
+
+---
+
+## 5b. Observability: Azure Monitor Equivalence
+
+Teams currently using Azure Monitor (Application Insights, Log Analytics, Azure Alerts, Workbooks) with APIM will find equivalent or better capabilities in this platform's observability stack.
+
+| Azure Monitor Feature | This Stack | Assessment |
+|---|---|---|
+| Application Insights | Cribl (5 pipelines) + Prometheus | **Better** — geo-IP enrichment, PII masking, anomaly detection in pipeline |
+| Log Analytics / KQL | Grafana + PromQL | **Better** — self-service dashboards, no tickets needed |
+| Azure Alerts | 36 Prometheus alert rules (7 groups) | **Better** — more granular, pre-built for API gateway |
+| Azure Workbooks | 6 Grafana dashboards (auto-provisioned) | **Better** — domain-specific, zero setup |
+| Azure Monitor Metrics | Prometheus + 14 recording rules | **Equivalent** |
+| Azure Sentinel (SIEM) | Cribl → Splunk HEC (real-time) | **Equivalent** — already integrated |
+
+Cribl Stream is **already deployed** in the Sleep Number environment. Grafana and Prometheus run as containers alongside the gateway. No additional licensing is required.
+
+For the full comparison, including what Azure Monitor provides that this stack does not yet cover, see [Observability Comparison](observability-comparison.md).
 
 ---
 

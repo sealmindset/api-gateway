@@ -3,17 +3,20 @@
     "ClientId": "api-gateway-local",
     "ClientSecrets": ["mock-client-secret"],
     "Description": "API Gateway Admin Panel (local development)",
-    "AllowedGrantTypes": ["authorization_code"],
+    "AllowedGrantTypes": ["authorization_code", "password", "client_credentials"],
     "AllowedScopes": ["openid", "email", "profile"],
     "RedirectUris": [
       "http://localhost:8080/auth/callback",
+      "http://localhost:8880/auth/callback",
       "http://admin-panel:8080/auth/callback"
     ],
     "PostLogoutRedirectUris": [
       "http://localhost:3000",
-      "http://localhost:8080"
+      "http://localhost:8080",
+      "http://localhost:8880"
     ],
     "RequirePkce": false,
-    "AllowAccessTokensViaBrowser": true
+    "AllowAccessTokensViaBrowser": true,
+    "AllowOfflineAccess": true
   }
 ]

@@ -1,0 +1,6 @@
+# Test dependencies -- install with: pip install -r requirements-test.txt
+-r requirements.txt
+pytest>=9.0
+pytest-asyncio>=1.0
+aiosqlite>=0.20
+httpx>=0.28

@@ -384,6 +384,30 @@ Register a new API. User must be a member of the specified team.
 | `auth_type` | `string` | No | `"key-auth"` | One of: `key-auth`, `oauth2`, `jwt`, `none` |
 | `requires_approval` | `boolean` | No | `true` | Whether the API requires review before activation |
 | `team_id` | `uuid` | Yes | -- | Owning team ID |
+| `contact_primary_email` | `string` | No | `null` | Primary on-call contact email (max 320) |
+| `contact_escalation_email` | `string` | No | `null` | Escalation contact email (max 320) |
+| `contact_slack_channel` | `string` | No | `null` | Slack channel for alerts (max 128) |
+| `contact_pagerduty_service` | `string` | No | `null` | PagerDuty service key (max 256) |
+| `contact_support_url` | `string` | No | `null` | Support page or runbook URL |
+| `sla_uptime_target` | `float` | No | `null` | Uptime SLA target, e.g. `99.95` (0-100) |
+| `sla_latency_p50_ms` | `integer` | No | `null` | P50 latency target in ms |
+| `sla_latency_p95_ms` | `integer` | No | `null` | P95 latency target in ms |
+| `sla_latency_p99_ms` | `integer` | No | `null` | P99 latency target in ms |
+| `sla_error_budget_pct` | `float` | No | `null` | Error budget percentage (0-100) |
+| `sla_support_hours` | `string` | No | `null` | Support hours, e.g. `"24/7"`, `"business-hours-cst"` |
+| `deprecation_notice_days` | `integer` | No | `90` | Minimum days notice before deprecation |
+| `breaking_change_policy` | `string` | No | `"semver"` | One of: `semver`, `date-based`, `never-break`, `custom` |
+| `versioning_scheme` | `string` | No | `"url-path"` | One of: `url-path`, `header`, `query-param`, `content-type` |
+| `changelog_url` | `string` | No | `null` | Link to API changelog |
+| `openapi_spec_url` | `string` | No | `null` | Link to OpenAPI spec |
+| `max_request_size_kb` | `integer` | No | `128` | Max request body size in KB (1-102400). Enforced in Kong via `request-size-limiting` plugin |
+| `max_response_size_kb` | `integer` | No | `null` | Max response body size in KB |
+| `cache_enabled` | `boolean` | No | `false` | Enable response caching via Kong `proxy-cache` plugin |
+| `cache_ttl_seconds` | `integer` | No | `300` | Cache TTL in seconds (1-86400) |
+| `cache_methods` | `array[string]` | No | `["GET","HEAD"]` | HTTP methods to cache |
+| `cache_content_types` | `array[string]` | No | `["application/json"]` | Content types to cache |
+| `cache_vary_headers` | `array[string]` | No | `["Accept"]` | Headers that vary cache keys |
+| `cache_bypass_on_auth` | `boolean` | No | `true` | Advisory: don't cache personalized responses |
 
 **Response (201):** `ApiRegistrationRead`
 
@@ -529,6 +553,129 @@ Get usage metrics for a registered API from Kong.
   }
 }
 ```
+
+### PATCH /api-registry/{reg_id}/contract
+
+Update data contract fields on an API registration. Allowed in **any status** (draft, active, deprecated) without re-approval. Only contract-related fields (contacts, SLAs, change management, schema) can be updated through this endpoint.
+
+If the API is active and `max_request_size_kb` is changed, the Kong `request-size-limiting` plugin is updated automatically.
+
+**Auth:** `api_registry:write` + team membership (`member`+)
+
+**Request Body:** `DataContractUpdate` (all fields optional)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `contact_primary_email` | `string` | Primary on-call contact email |
+| `contact_escalation_email` | `string` | Escalation contact email |
+| `contact_slack_channel` | `string` | Slack channel for alerts |
+| `contact_pagerduty_service` | `string` | PagerDuty service key |
+| `contact_support_url` | `string` | Support page or runbook URL |
+| `sla_uptime_target` | `float` | Uptime SLA target (0-100) |
+| `sla_latency_p50_ms` | `integer` | P50 latency target in ms |
+| `sla_latency_p95_ms` | `integer` | P95 latency target in ms |
+| `sla_latency_p99_ms` | `integer` | P99 latency target in ms |
+| `sla_error_budget_pct` | `float` | Error budget percentage (0-100) |
+| `sla_support_hours` | `string` | Support hours (e.g. `"24/7"`) |
+| `deprecation_notice_days` | `integer` | Minimum days notice before deprecation |
+| `breaking_change_policy` | `string` | One of: `semver`, `date-based`, `never-break`, `custom` |
+| `versioning_scheme` | `string` | One of: `url-path`, `header`, `query-param`, `content-type` |
+| `changelog_url` | `string` | Link to API changelog |
+| `openapi_spec_url` | `string` | Link to OpenAPI spec |
+| `max_request_size_kb` | `integer` | Max request body size in KB (1-102400) |
+| `max_response_size_kb` | `integer` | Max response body size in KB |
+| `cache_enabled` | `boolean` | Enable/disable response caching |
+| `cache_ttl_seconds` | `integer` | Cache TTL in seconds (1-86400) |
+| `cache_methods` | `array[string]` | HTTP methods to cache |
+| `cache_content_types` | `array[string]` | Content types to cache |
+| `cache_vary_headers` | `array[string]` | Headers that vary cache keys |
+| `cache_bypass_on_auth` | `boolean` | Advisory: don't cache personalized responses |
+
+**Response:** `ApiRegistrationRead`
+
+**Error (404):** Registration not found.
+**Error (422):** Validation error (e.g., `sla_uptime_target > 100`, negative latency, invalid policy).
+
+**Kong sync behavior:** If the API is active:
+- Changing `max_request_size_kb` updates the `request-size-limiting` plugin
+- Changing any `cache_*` field syncs the `proxy-cache` plugin (creates, updates, or removes it based on `cache_enabled`)
+
+---
+
+## Public API Catalog
+
+Prefix: `/public/api-catalog`
+
+These endpoints are **unauthenticated** and intended for API consumers and subscribers to discover available APIs and their data contracts.
+
+### GET /public/api-catalog
+
+List all active APIs with their data contracts. Only APIs in `active` status are included.
+
+**Auth:** None
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | `integer` | `1` | Page number |
+| `page_size` | `integer` | `20` | Items per page (max 100) |
+| `search` | `string` | `null` | Filter by name or slug (case-insensitive) |
+
+**Response:** `PaginatedResponse` containing `PublicApiCatalogEntry` items.
+
+### GET /public/api-catalog/{slug}
+
+Get a single active API's data contract by slug.
+
+**Auth:** None
+
+**Response:** `PublicApiCatalogEntry`
+
+```json
+{
+  "name": "Weather Forecast API",
+  "slug": "weather-forecast-api",
+  "description": "Returns 7-day forecasts by ZIP code.",
+  "version": "v1",
+  "api_type": "rest",
+  "documentation_url": "https://docs.example.com/weather-api",
+  "gateway_path": "/api/weather",
+  "auth_type": "key-auth",
+  "tags": ["weather", "forecast"],
+  "status": "active",
+  "rate_limit_second": 10,
+  "rate_limit_minute": 200,
+  "rate_limit_hour": 5000,
+  "contact_primary_email": "oncall@example.com",
+  "contact_escalation_email": "escalation@example.com",
+  "contact_slack_channel": "#weather-api-alerts",
+  "sla_uptime_target": 99.95,
+  "sla_latency_p50_ms": 50,
+  "sla_latency_p95_ms": 200,
+  "sla_latency_p99_ms": 500,
+  "sla_support_hours": "24/7",
+  "deprecation_notice_days": 60,
+  "breaking_change_policy": "semver",
+  "versioning_scheme": "url-path",
+  "max_request_size_kb": 512,
+  "openapi_spec_url": "https://docs.example.com/openapi.json"
+}
+```
+
+**Note:** Internal fields (`upstream_url`, `kong_service_id`, `kong_route_id`, `reviewed_by`, `team_id`) are excluded from the public catalog response.
+
+**Error (404):** API not found or not in `active` status.
+
+### GET /public/api-catalog/{slug}/try-it
+
+Interactive Swagger UI page for testing an active API. Loads the API's OpenAPI specification and pre-configures the gateway URL as the server. Subscribers enter their API key in the authorize dialog to make authenticated requests.
+
+**Auth:** None (API key entered in Swagger UI, enforced by Kong)
+
+**Response (200):** HTML page with embedded Swagger UI.
+
+**Error (404):** API not found, not active, or no `openapi_spec_url` configured.
 
 ---
 

@@ -6,9 +6,9 @@
     "Claims": [
       { "Type": "sub", "Value": "admin-oid-001" },
       { "Type": "oid", "Value": "admin-oid-001" },
-      { "Type": "email", "Value": "admin@sleepnumber.local" },
+      { "Type": "email", "Value": "admin@sleepnumber.dev" },
       { "Type": "name", "Value": "Platform Admin" },
-      { "Type": "preferred_username", "Value": "admin@sleepnumber.local" }
+      { "Type": "preferred_username", "Value": "admin@sleepnumber.dev" }
     ]
   },
   {
@@ -18,9 +18,9 @@
     "Claims": [
       { "Type": "sub", "Value": "operator-oid-002" },
       { "Type": "oid", "Value": "operator-oid-002" },
-      { "Type": "email", "Value": "operator@sleepnumber.local" },
+      { "Type": "email", "Value": "operator@sleepnumber.dev" },
       { "Type": "name", "Value": "DevOps Operator" },
-      { "Type": "preferred_username", "Value": "operator@sleepnumber.local" }
+      { "Type": "preferred_username", "Value": "operator@sleepnumber.dev" }
     ]
   },
   {
@@ -30,9 +30,9 @@
     "Claims": [
       { "Type": "sub", "Value": "teamlead-oid-003" },
       { "Type": "oid", "Value": "teamlead-oid-003" },
-      { "Type": "email", "Value": "teamlead@sleepnumber.local" },
+      { "Type": "email", "Value": "teamlead@sleepnumber.dev" },
       { "Type": "name", "Value": "API Team Lead" },
-      { "Type": "preferred_username", "Value": "teamlead@sleepnumber.local" }
+      { "Type": "preferred_username", "Value": "teamlead@sleepnumber.dev" }
     ]
   },
   {
@@ -42,9 +42,9 @@
     "Claims": [
       { "Type": "sub", "Value": "developer-oid-004" },
       { "Type": "oid", "Value": "developer-oid-004" },
-      { "Type": "email", "Value": "developer@sleepnumber.local" },
+      { "Type": "email", "Value": "developer@sleepnumber.dev" },
       { "Type": "name", "Value": "Team Developer" },
-      { "Type": "preferred_username", "Value": "developer@sleepnumber.local" }
+      { "Type": "preferred_username", "Value": "developer@sleepnumber.dev" }
     ]
   },
   {
@@ -54,9 +54,9 @@
     "Claims": [
       { "Type": "sub", "Value": "viewer-oid-005" },
       { "Type": "oid", "Value": "viewer-oid-005" },
-      { "Type": "email", "Value": "viewer@sleepnumber.local" },
+      { "Type": "email", "Value": "viewer@sleepnumber.dev" },
       { "Type": "name", "Value": "Read Only User" },
-      { "Type": "preferred_username", "Value": "viewer@sleepnumber.local" }
+      { "Type": "preferred_username", "Value": "viewer@sleepnumber.dev" }
     ]
   },
   {
@@ -66,9 +66,9 @@
     "Claims": [
       { "Type": "sub", "Value": "newuser-oid-006" },
       { "Type": "oid", "Value": "newuser-oid-006" },
-      { "Type": "email", "Value": "newuser@sleepnumber.local" },
+      { "Type": "email", "Value": "newuser@sleepnumber.dev" },
       { "Type": "name", "Value": "New Employee" },
-      { "Type": "preferred_username", "Value": "newuser@sleepnumber.local" }
+      { "Type": "preferred_username", "Value": "newuser@sleepnumber.dev" }
     ]
   }
 ]

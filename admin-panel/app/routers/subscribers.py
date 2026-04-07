@@ -175,6 +175,7 @@ async def update_subscriber(
     for field, value in update_data.items():
         setattr(subscriber, field, value)
     await db.flush()
+    await db.refresh(subscriber)
 
     await log_access(
         db,
@@ -275,9 +276,9 @@ async def create_api_key(
         ip_address=request.client.host if request.client else None,
     )
 
-    result = ApiKeyCreated.model_validate(api_key)
-    result.raw_key = raw_key
-    return result
+    key_data = ApiKeyRead.model_validate(api_key).model_dump()
+    key_data["raw_key"] = raw_key
+    return ApiKeyCreated(**key_data)
 
 
 @router.post("/{subscriber_id}/keys/{key_id}/rotate", response_model=ApiKeyRotateResponse)
@@ -332,9 +333,9 @@ async def rotate_api_key(
         ip_address=request.client.host if request.client else None,
     )
 
-    new_key_response = ApiKeyCreated.model_validate(new_key)
-    new_key_response.raw_key = raw_key
-    return ApiKeyRotateResponse(old_key_id=key_id, new_key=new_key_response)
+    new_key_data = ApiKeyRead.model_validate(new_key).model_dump()
+    new_key_data["raw_key"] = raw_key
+    return ApiKeyRotateResponse(old_key_id=key_id, new_key=ApiKeyCreated(**new_key_data))
 
 
 @router.delete("/{subscriber_id}/keys/{key_id}", status_code=204)

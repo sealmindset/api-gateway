@@ -29,6 +29,7 @@ from app.models.schemas import (
     ApiRegistrationReview,
     ApiRegistrationStatusChange,
     ApiRegistrationUpdate,
+    DataContractUpdate,
     PaginatedResponse,
 )
 
@@ -164,6 +165,38 @@ async def _provision_kong_service(reg: ApiRegistration) -> tuple[str, str]:
         except HTTPException:
             logger.warning("Auth plugin %s may already exist for %s", reg.auth_type, service_name)
 
+    # Add request-size-limiting plugin if configured
+    if reg.max_request_size_kb:
+        try:
+            await _kong_request("POST", f"/services/{service_name}/plugins", json_body={
+                "name": "request-size-limiting",
+                "config": {
+                    "allowed_payload_size": reg.max_request_size_kb,
+                    "size_unit": "kilobytes",
+                },
+            })
+        except HTTPException:
+            logger.warning("request-size-limiting plugin may already exist for %s", service_name)
+
+    # Add proxy-cache plugin if caching is enabled
+    if reg.cache_enabled:
+        try:
+            await _kong_request("POST", f"/services/{service_name}/plugins", json_body={
+                "name": "proxy-cache",
+                "config": {
+                    "strategy": "memory",
+                    "content_type": reg.cache_content_types or ["application/json"],
+                    "cache_ttl": reg.cache_ttl_seconds,
+                    "request_method": reg.cache_methods or ["GET", "HEAD"],
+                    "response_code": [200, 301, 302],
+                    "vary_headers": reg.cache_vary_headers or ["Accept"],
+                    "cache_control": True,
+                    "storage_ttl": reg.cache_ttl_seconds * 2,
+                },
+            })
+        except HTTPException:
+            logger.warning("proxy-cache plugin may already exist for %s", service_name)
+
     # Add prometheus plugin for usage metrics
     try:
         await _kong_request("POST", f"/services/{service_name}/plugins", json_body={
@@ -189,6 +222,72 @@ async def _deprovision_kong_service(reg: ApiRegistration) -> None:
             await _kong_request("DELETE", f"/services/{service_name}")
         except HTTPException:
             logger.warning("Failed to delete Kong service for %s", reg.slug)
+
+
+async def _sync_request_size_plugin(reg: ApiRegistration) -> None:
+    """Create or update the request-size-limiting plugin in Kong for an active API."""
+    service_name = f"api-reg-{reg.slug}"
+    try:
+        # Try to find existing plugin
+        plugins_resp = await _kong_request("GET", f"/services/{service_name}/plugins")
+        existing = None
+        for p in (plugins_resp or {}).get("data", []):
+            if p.get("name") == "request-size-limiting":
+                existing = p
+                break
+
+        if existing:
+            await _kong_request("PATCH", f"/plugins/{existing['id']}", json_body={
+                "config": {
+                    "allowed_payload_size": reg.max_request_size_kb,
+                    "size_unit": "kilobytes",
+                },
+            })
+        else:
+            await _kong_request("POST", f"/services/{service_name}/plugins", json_body={
+                "name": "request-size-limiting",
+                "config": {
+                    "allowed_payload_size": reg.max_request_size_kb,
+                    "size_unit": "kilobytes",
+                },
+            })
+    except HTTPException:
+        logger.warning("Failed to sync request-size-limiting plugin for %s", service_name)
+
+
+async def _sync_proxy_cache_plugin(reg: ApiRegistration) -> None:
+    """Create, update, or remove the proxy-cache plugin in Kong for an active API."""
+    service_name = f"api-reg-{reg.slug}"
+    try:
+        plugins_resp = await _kong_request("GET", f"/services/{service_name}/plugins")
+        existing = None
+        for p in (plugins_resp or {}).get("data", []):
+            if p.get("name") == "proxy-cache":
+                existing = p
+                break
+
+        if reg.cache_enabled:
+            config = {
+                "strategy": "memory",
+                "content_type": reg.cache_content_types or ["application/json"],
+                "cache_ttl": reg.cache_ttl_seconds,
+                "request_method": reg.cache_methods or ["GET", "HEAD"],
+                "response_code": [200, 301, 302],
+                "vary_headers": reg.cache_vary_headers or ["Accept"],
+                "cache_control": True,
+                "storage_ttl": reg.cache_ttl_seconds * 2,
+            }
+            if existing:
+                await _kong_request("PATCH", f"/plugins/{existing['id']}", json_body={"config": config})
+            else:
+                await _kong_request("POST", f"/services/{service_name}/plugins", json_body={
+                    "name": "proxy-cache", "config": config,
+                })
+        elif existing:
+            # Cache disabled but plugin exists — remove it
+            await _kong_request("DELETE", f"/plugins/{existing['id']}")
+    except HTTPException:
+        logger.warning("Failed to sync proxy-cache plugin for %s", service_name)
 
 
 # ---------------------------------------------------------------------------
@@ -253,6 +352,7 @@ async def create_registration(
     reg = ApiRegistration(**body.model_dump())
     db.add(reg)
     await db.flush()
+    await db.refresh(reg)
 
     await log_access(
         db, user=user, action="create", resource_type="api_registration",
@@ -298,6 +398,7 @@ async def update_registration(
     if reg.status == "rejected":
         reg.status = "draft"
     await db.flush()
+    await db.refresh(reg)
 
     await log_access(
         db, user=user, action="update", resource_type="api_registration",
@@ -332,6 +433,53 @@ async def delete_registration(
 
 
 # ---------------------------------------------------------------------------
+# Data Contract
+# ---------------------------------------------------------------------------
+
+@router.patch("/{reg_id}/contract", response_model=ApiRegistrationRead)
+async def update_contract(
+    reg_id: uuid.UUID,
+    body: DataContractUpdate,
+    request: Request,
+    user: User = Depends(require_permission("api_registry:write")),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Update data contract fields. Allowed in ANY status (no approval needed)."""
+    reg = await _get_registration_or_404(db, reg_id)
+    await _check_team_member(db, user, reg.team_id, min_role="member")
+
+    update_data = body.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(reg, field, value)
+    await db.flush()
+    await db.refresh(reg)
+
+    # If API is active in Kong and max_request_size_kb changed, sync plugin
+    if (
+        reg.status == "active"
+        and reg.kong_service_id
+        and "max_request_size_kb" in update_data
+    ):
+        await _sync_request_size_plugin(reg)
+
+    # If API is active in Kong and cache fields changed, sync proxy-cache plugin
+    cache_fields = {"cache_enabled", "cache_ttl_seconds", "cache_methods", "cache_content_types", "cache_vary_headers"}
+    if (
+        reg.status == "active"
+        and reg.kong_service_id
+        and cache_fields & update_data.keys()
+    ):
+        await _sync_proxy_cache_plugin(reg)
+
+    await log_access(
+        db, user=user, action="update_contract", resource_type="api_registration",
+        resource_id=str(reg_id), details=update_data,
+        ip_address=request.client.host if request.client else None,
+    )
+    return ApiRegistrationRead.model_validate(reg)
+
+
+# ---------------------------------------------------------------------------
 # Submission & Review Workflow
 # ---------------------------------------------------------------------------
 
@@ -352,6 +500,7 @@ async def submit_for_review(
     reg.status = "pending_review"
     reg.submitted_at = datetime.now(timezone.utc)
     await db.flush()
+    await db.refresh(reg)
 
     await log_access(
         db, user=user, action="submit", resource_type="api_registration",
@@ -385,6 +534,7 @@ async def review_registration(
         reg.status = "rejected"
 
     await db.flush()
+    await db.refresh(reg)
 
     await log_access(
         db, user=user, action=f"review_{body.action}", resource_type="api_registration",
@@ -415,6 +565,7 @@ async def activate_registration(
     reg.status = "active"
     reg.activated_at = datetime.now(timezone.utc)
     await db.flush()
+    await db.refresh(reg)
 
     await log_access(
         db, user=user, action="activate", resource_type="api_registration",
@@ -453,6 +604,7 @@ async def change_status(
         reg.kong_route_id = None
 
     await db.flush()
+    await db.refresh(reg)
 
     await log_access(
         db, user=user, action="change_status", resource_type="api_registration",

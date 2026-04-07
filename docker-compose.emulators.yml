@@ -1,0 +1,119 @@
+# =============================================================================
+# Docker Compose - Azure Emulators for Local Development
+# =============================================================================
+# Adds Azurite (Azure Storage) and Lowkey Vault (Azure Key Vault) so
+# application code can call Azure SDKs without needing real cloud credentials.
+#
+# These emulators are OPTIONAL -- the core stack runs fine without them.
+# Only spin them up when you are developing features that touch Azure
+# Storage or Key Vault.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.emulators.yml up -d
+#
+# Or bring up only the emulators (they join the same network):
+#   docker compose -f docker-compose.emulators.yml up -d azurite lowkey-vault
+#
+# Quick validation:
+#   # Azurite -- list blob containers (should return empty XML or 403)
+#   curl -s http://localhost:10000/devstoreaccount1?comp=list
+#
+#   # Lowkey Vault -- ping endpoint
+#   curl -sk https://localhost:8443/ping
+#
+# Well-known Azurite storage account key:
+#   Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
+#
+# See: https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite
+# See: https://github.com/nagyesta/lowkey-vault
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Azurite - Azure Storage Emulator (Blob, Queue, Table)
+  # ---------------------------------------------------------------------------
+  # Provides local emulation of:
+  #   - Azure Blob Storage  (port 10000)
+  #   - Azure Queue Storage (port 10001)
+  #   - Azure Table Storage (port 10002)
+  #
+  # Connection string for application code:
+  #   DefaultEndpointsProtocol=http;
+  #   AccountName=devstoreaccount1;
+  #   AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;
+  #   BlobEndpoint=http://azurite:10000/devstoreaccount1;
+  #   QueueEndpoint=http://azurite:10001/devstoreaccount1;
+  #   TableEndpoint=http://azurite:10002/devstoreaccount1;
+  # ---------------------------------------------------------------------------
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.34.0
+    container_name: api-gw-azurite
+    restart: unless-stopped
+    command: >
+      azurite
+      --blobHost 0.0.0.0 --blobPort 10000
+      --queueHost 0.0.0.0 --queuePort 10001
+      --tableHost 0.0.0.0 --tablePort 10002
+      --location /data
+      --loose
+      --skipApiVersionCheck
+    volumes:
+      - azurite_data:/data
+    ports:
+      - "${AZURITE_BLOB_PORT:-10000}:10000"
+      - "${AZURITE_QUEUE_PORT:-10011}:10001"
+      - "${AZURITE_TABLE_PORT:-10012}:10002"
+    networks:
+      - api-gateway-net
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "10000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ---------------------------------------------------------------------------
+  # Lowkey Vault - Azure Key Vault Emulator
+  # ---------------------------------------------------------------------------
+  # Provides local emulation of Azure Key Vault APIs:
+  #   - Secrets, Keys, and Certificates
+  #   - Managed Identity token stub (port 8080)
+  #
+  # Vault URI:       https://localhost:8443
+  # Swagger UI:      https://localhost:8443/api/swagger-ui/index.html
+  # Token endpoint:  http://localhost:8580/metadata/identity/oauth2/token
+  #
+  # Authentication: Lowkey Vault validates that a Bearer token is present
+  # and well-formed, but ignores its actual value. Any valid JWT works.
+  # The built-in token stub at port 8080 provides tokens automatically.
+  # ---------------------------------------------------------------------------
+  lowkey-vault:
+    image: nagyesta/lowkey-vault:7.1.32
+    container_name: api-gw-lowkey-vault
+    restart: unless-stopped
+    ports:
+      - "${KEYVAULT_PORT:-8443}:8443"           # Vault API (HTTPS)
+      - "${KEYVAULT_TOKEN_PORT:-8580}:8080"     # Managed Identity token stub
+    networks:
+      - api-gateway-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--no-check-certificate", "--spider", "https://localhost:8443/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  azurite_data:
+    driver: local
+
+# =============================================================================
+# Networks - Joins the existing api-gateway-net from docker-compose.yml
+# =============================================================================
+networks:
+  api-gateway-net:
+    external: true
+    name: api-gateway-net

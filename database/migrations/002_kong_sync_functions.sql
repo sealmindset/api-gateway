@@ -10,6 +10,10 @@
 --   2. PostgreSQL NOTIFY sends event on 'kong_sync' channel
 --   3. Sync worker (admin-panel or dedicated service) receives event
 --   4. Worker calls Kong Admin API to apply changes
+--
+-- NOTE: Kong consumer/key IDs are NOT stored in the database. The application
+-- layer (admin-panel/app/routers/subscribers.py) manages Kong sync via httpx
+-- calls. These functions build the sync payloads that the app layer sends.
 -- =============================================================================
 
 BEGIN;
@@ -17,8 +21,8 @@ BEGIN;
 -- =============================================================================
 -- Function: Sync subscriber to Kong consumer
 -- =============================================================================
--- Creates or updates a Kong consumer when a subscriber is created/modified.
--- Returns the Kong consumer data as JSON for the caller to apply via Admin API.
+-- Builds the Kong consumer payload for a given subscriber.
+-- The app layer uses this to create/update Kong consumers via Admin API.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION sync_subscriber_to_kong_consumer(p_subscriber_id UUID)
 RETURNS JSONB AS $$
@@ -26,16 +30,13 @@ DECLARE
     v_subscriber RECORD;
     v_result JSONB;
 BEGIN
-    -- Fetch subscriber details
     SELECT
         s.id,
         s.name,
         s.organization,
         s.email,
-        s.is_active,
-        s.kong_consumer_id,
-        s.kong_consumer_name,
-        s.metadata
+        s.tier,
+        s.status
     INTO v_subscriber
     FROM subscribers s
     WHERE s.id = p_subscriber_id;
@@ -48,23 +49,20 @@ BEGIN
     -- The consumer username is derived from the subscriber for uniqueness
     v_result := jsonb_build_object(
         'action', CASE
-            WHEN v_subscriber.kong_consumer_id IS NOT NULL THEN 'update'
-            ELSE 'create'
+            WHEN v_subscriber.status = 'active' THEN 'upsert'
+            ELSE 'delete'
         END,
         'consumer', jsonb_build_object(
-            'username', COALESCE(
-                v_subscriber.kong_consumer_name,
-                'sub-' || v_subscriber.id::TEXT
-            ),
+            'username', 'sub-' || v_subscriber.id::TEXT,
             'custom_id', v_subscriber.id::TEXT,
             'tags', jsonb_build_array(
                 'managed-by:admin-panel',
                 'org:' || COALESCE(v_subscriber.organization, 'none'),
-                CASE WHEN v_subscriber.is_active THEN 'status:active' ELSE 'status:inactive' END
+                'tier:' || v_subscriber.tier,
+                'status:' || v_subscriber.status
             )
         ),
-        'subscriber_id', v_subscriber.id::TEXT,
-        'kong_consumer_id', v_subscriber.kong_consumer_id
+        'subscriber_id', v_subscriber.id::TEXT
     );
 
     RETURN v_result;
@@ -84,71 +82,58 @@ CREATE OR REPLACE FUNCTION sync_api_key_to_kong(
 RETURNS JSONB AS $$
 DECLARE
     v_key RECORD;
-    v_subscriber RECORD;
     v_result JSONB;
 BEGIN
-    -- Fetch API key with subscriber info
+    -- Fetch API key details
     SELECT
         ak.id,
         ak.subscriber_id,
         ak.name,
         ak.is_active,
         ak.scopes,
-        ak.allowed_ips,
-        ak.kong_key_id,
-        ak.revoked_at,
-        ak.expires_at,
-        s.kong_consumer_id,
-        s.kong_consumer_name
+        ak.expires_at
     INTO v_key
     FROM api_keys ak
-    JOIN subscribers s ON s.id = ak.subscriber_id
     WHERE ak.id = p_api_key_id;
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'API key % not found', p_api_key_id;
     END IF;
 
-    IF v_key.kong_consumer_id IS NULL THEN
-        RAISE EXCEPTION 'Subscriber % has no Kong consumer. Sync subscriber first.',
-            v_key.subscriber_id;
-    END IF;
-
     -- Determine action
-    IF v_key.revoked_at IS NOT NULL OR NOT v_key.is_active THEN
-        -- Key is revoked or inactive: delete from Kong
+    IF NOT v_key.is_active THEN
+        -- Key is inactive: delete from Kong
         v_result := jsonb_build_object(
             'action', 'delete',
-            'kong_consumer_id', v_key.kong_consumer_id,
-            'kong_key_id', v_key.kong_key_id,
-            'api_key_id', v_key.id::TEXT
-        );
-    ELSIF v_key.kong_key_id IS NOT NULL THEN
-        -- Key exists in Kong: no update needed (keys are immutable)
-        v_result := jsonb_build_object(
-            'action', 'noop',
-            'message', 'Key already synced to Kong',
+            'subscriber_id', v_key.subscriber_id::TEXT,
             'api_key_id', v_key.id::TEXT
         );
     ELSE
-        -- New key: create in Kong
+        -- Active key: create/update in Kong
         IF p_key_value IS NULL THEN
-            RAISE EXCEPTION 'Key value required for new key creation';
+            -- No key value means this is a reconciliation check, not a new key
+            v_result := jsonb_build_object(
+                'action', 'reconcile',
+                'subscriber_id', v_key.subscriber_id::TEXT,
+                'api_key_id', v_key.id::TEXT,
+                'name', v_key.name
+            );
+        ELSE
+            -- New key: create in Kong
+            v_result := jsonb_build_object(
+                'action', 'create',
+                'subscriber_id', v_key.subscriber_id::TEXT,
+                'credential', jsonb_build_object(
+                    'key', p_key_value,
+                    'tags', jsonb_build_array(
+                        'managed-by:admin-panel',
+                        'api-key-id:' || v_key.id::TEXT,
+                        'name:' || v_key.name
+                    )
+                ),
+                'api_key_id', v_key.id::TEXT
+            );
         END IF;
-
-        v_result := jsonb_build_object(
-            'action', 'create',
-            'kong_consumer_id', v_key.kong_consumer_id,
-            'credential', jsonb_build_object(
-                'key', p_key_value,
-                'tags', jsonb_build_array(
-                    'managed-by:admin-panel',
-                    'api-key-id:' || v_key.id::TEXT,
-                    'name:' || v_key.name
-                )
-            ),
-            'api_key_id', v_key.id::TEXT
-        );
     END IF;
 
     RETURN v_result;
@@ -156,10 +141,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =============================================================================
--- Function: Update Kong rate-limiting config for a subscription change
+-- Function: Sync subscription rate limits to Kong
 -- =============================================================================
 -- When a subscriber's plan changes, this function generates the Kong
 -- rate-limiting plugin configuration to be applied to their consumer.
+-- Subscription-level overrides take priority over plan defaults.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION sync_subscription_rate_limits(p_subscription_id UUID)
 RETURNS JSONB AS $$
@@ -169,19 +155,15 @@ DECLARE
     v_plugin_config JSONB;
 BEGIN
     -- Fetch subscription with plan and subscriber details
+    -- Subscription-level rate limits override plan defaults when set
     SELECT
         sub.id AS subscription_id,
         sub.status,
         s.id AS subscriber_id,
-        s.kong_consumer_id,
         p.name AS plan_name,
-        p.rate_limit_per_second,
-        p.rate_limit_per_minute,
-        p.rate_limit_per_hour,
-        p.rate_limit_per_day,
-        p.rate_limit_per_month,
-        p.monthly_quota,
-        p.max_request_size_kb
+        COALESCE(sub.rate_limit_per_second, p.rate_limit_second) AS rl_second,
+        COALESCE(sub.rate_limit_per_minute, p.rate_limit_minute) AS rl_minute,
+        COALESCE(sub.rate_limit_per_hour, p.rate_limit_hour) AS rl_hour
     INTO v_sub
     FROM subscriptions sub
     JOIN subscribers s ON s.id = sub.subscriber_id
@@ -192,20 +174,13 @@ BEGIN
         RAISE EXCEPTION 'Subscription % not found', p_subscription_id;
     END IF;
 
-    IF v_sub.kong_consumer_id IS NULL THEN
-        RAISE EXCEPTION 'Subscriber % has no Kong consumer', v_sub.subscriber_id;
-    END IF;
-
     -- Build rate-limiting plugin config
     v_plugin_config := jsonb_build_object(
         'name', 'rate-limiting',
-        'consumer', jsonb_build_object('id', v_sub.kong_consumer_id),
         'config', jsonb_strip_nulls(jsonb_build_object(
-            'second', v_sub.rate_limit_per_second,
-            'minute', v_sub.rate_limit_per_minute,
-            'hour', v_sub.rate_limit_per_hour,
-            'day', v_sub.rate_limit_per_day,
-            'month', v_sub.rate_limit_per_month,
+            'second', v_sub.rl_second,
+            'minute', v_sub.rl_minute,
+            'hour', v_sub.rl_hour,
             'policy', 'redis',
             'fault_tolerant', true,
             'hide_client_headers', false,
@@ -214,27 +189,15 @@ BEGIN
         ))
     );
 
-    -- Build request-size-limiting plugin config
     v_result := jsonb_build_object(
         'action', CASE
             WHEN v_sub.status = 'active' THEN 'upsert'
             ELSE 'delete'
         END,
-        'kong_consumer_id', v_sub.kong_consumer_id,
         'subscriber_id', v_sub.subscriber_id::TEXT,
         'subscription_id', v_sub.subscription_id::TEXT,
         'plan', v_sub.plan_name,
-        'plugins', jsonb_build_array(
-            v_plugin_config,
-            jsonb_build_object(
-                'name', 'request-size-limiting',
-                'consumer', jsonb_build_object('id', v_sub.kong_consumer_id),
-                'config', jsonb_build_object(
-                    'allowed_payload_size', v_sub.max_request_size_kb,
-                    'size_unit', 'kilobytes'
-                )
-            )
-        )
+        'plugins', jsonb_build_array(v_plugin_config)
     );
 
     RETURN v_result;
@@ -263,16 +226,14 @@ BEGIN
         jsonb_build_object(
             'api_key_id', ak.id::TEXT,
             'name', ak.name,
-            'kong_key_id', ak.kong_key_id,
             'is_active', ak.is_active,
-            'synced', ak.kong_key_id IS NOT NULL
+            'key_prefix', ak.key_prefix
         )
     ), '[]'::JSONB)
     INTO v_keys
     FROM api_keys ak
     WHERE ak.subscriber_id = p_subscriber_id
-      AND ak.is_active = TRUE
-      AND ak.revoked_at IS NULL;
+      AND ak.is_active = TRUE;
 
     -- Get active subscription rate limits
     SELECT sub.id INTO v_active_sub_id

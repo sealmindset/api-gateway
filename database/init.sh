@@ -65,6 +65,26 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$ADMIN_DB" \
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$ADMIN_DB" \
     -f /docker-entrypoint-initdb.d/migrations/003_ai_layer.sql
 
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$ADMIN_DB" \
+    -f /docker-entrypoint-initdb.d/migrations/004_teams_and_api_registry.sql
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$ADMIN_DB" \
+    -f /docker-entrypoint-initdb.d/migrations/005_data_contracts.sql
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$ADMIN_DB" \
+    -f /docker-entrypoint-initdb.d/migrations/006_caching.sql
+
+# Grant full access to admin user (migrations run as postgres, so tables are owned by postgres)
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$ADMIN_DB" <<-EOSQL
+    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ${ADMIN_USER};
+    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${ADMIN_USER};
+    GRANT USAGE, CREATE ON SCHEMA public TO ${ADMIN_USER};
+    ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+        GRANT ALL ON TABLES TO ${ADMIN_USER};
+    ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+        GRANT ALL ON SEQUENCES TO ${ADMIN_USER};
+EOSQL
+
 # Grant read-only access
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$ADMIN_DB" <<-EOSQL
     GRANT SELECT ON ALL TABLES IN SCHEMA public TO api_gateway_readonly;

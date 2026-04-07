@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     kong_admin_token: Optional[str] = Field(
         None, description="Optional bearer token for Kong Admin API"
     )
+    kong_proxy_url: str = Field(
+        "http://localhost:8800",
+        description="Public-facing Kong proxy URL used by the developer portal Try It page",
+    )
 
     # --- Redis ---
     redis_url: str = Field(
@@ -121,6 +125,38 @@ class Settings(BaseSettings):
     ai_sampling_rate: float = Field(
         0.1, description="Fraction of requests to analyze (0.0-1.0)"
     )
+
+    # --- Azure Storage (Azurite in dev, Azure Blob Storage in prod) ---
+    azure_storage_connection_string: Optional[str] = Field(
+        None, description="Azure Storage connection string (set automatically by emulator defaults)",
+    )
+    azure_storage_account_name: Optional[str] = Field(
+        None, description="Azure Storage account name",
+    )
+    azure_storage_account_key: Optional[str] = Field(
+        None, description="Azure Storage account key",
+    )
+    azure_storage_blob_endpoint: Optional[str] = Field(
+        None, description="Azure Blob Storage endpoint URL",
+    )
+
+    # --- Azure Key Vault (Lowkey Vault emulator in dev, Azure Key Vault in prod) ---
+    azure_keyvault_url: Optional[str] = Field(
+        None, description="Azure Key Vault URL (e.g. https://lowkey-vault:8443 for local dev)",
+    )
+    azure_keyvault_token_url: Optional[str] = Field(
+        None, description="Managed Identity token endpoint (Lowkey Vault provides one at port 8080)",
+    )
+
+    @property
+    def azure_storage_available(self) -> bool:
+        """True if Azure Storage credentials are configured."""
+        return bool(self.azure_storage_connection_string or self.azure_storage_account_name)
+
+    @property
+    def azure_keyvault_available(self) -> bool:
+        """True if Azure Key Vault is configured."""
+        return bool(self.azure_keyvault_url)
 
     # --- CORS ---
     cors_origins: str = "http://localhost:3000,http://localhost:8000"

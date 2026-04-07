@@ -27,3 +27,47 @@
 
 ### ~~LOW-001: Dockerfile missing HEALTHCHECK~~ DONE
 - Added `HEALTHCHECK` to production stage of `frontend/Dockerfile`
+
+## Known Issues
+
+### AI Prompts Auth Gap
+- **Severity:** Medium
+- **Status:** Open
+- `/ai/prompts` endpoint allows unauthenticated access (returns 200 without auth)
+- Marked as `xfail` in `tests/integration/test_05_security.py`
+- Needs `require_permission("ai:read")` dependency added to AI router endpoints
+
+## Completed (2026-04-07)
+
+### Battle Test Suite
+- 174 integration tests across 11 files, all passing
+- Coverage: auth, RBAC, teams, API registry lifecycle, subscribers, security, E2E, rate limits, advanced security, data contracts
+
+### Data Contracts Feature
+- 18 new columns on `api_registrations` table (contacts, SLAs, change management, schema)
+- `PATCH /api-registry/{id}/contract` endpoint for updating contracts without re-approval
+- Public catalog at `/public/api-catalog` (unauthenticated)
+- Kong `request-size-limiting` plugin auto-synced from `max_request_size_kb`
+- Migration: `database/migrations/005_data_contracts.sql`
+
+### Bug Fixes (Battle Testing)
+- Fixed MissingGreenlet on API registry endpoints (added `db.refresh()` after `db.flush()`)
+- Fixed UUID serialization in subscription PATCH (use `model_dump(mode="json")`)
+- Fixed API review payload schema mismatch (`action` field instead of `approved`)
+
+### Developer Portal
+- `GET /public/api-catalog/{slug}/try-it` — embedded Swagger UI for interactive API testing
+- Loads OpenAPI spec from data contract, pre-configures gateway URL
+- Subscribers authenticate via API key in Swagger UI authorize dialog
+
+### Per-API Caching Policies
+- 6 new columns on `api_registrations` (cache_enabled, cache_ttl_seconds, cache_methods, cache_content_types, cache_vary_headers, cache_bypass_on_auth)
+- Kong `proxy-cache` plugin synced on activation and contract update
+- Safe defaults: disabled, memory strategy (Kong CE 3.9 limitation — Redis requires Enterprise)
+- Migration: `database/migrations/006_caching.sql`
+
+### Observability Comparison
+- `docs/observability-comparison.md` — Azure Monitor feature-by-feature mapping
+- Maps Application Insights, Log Analytics, Azure Alerts, Workbooks to Prometheus + Grafana + Cribl
+- Cost comparison: $0 additional licensing vs APIM per-unit pricing
+- Added to RFC-001 and README

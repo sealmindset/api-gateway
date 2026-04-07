@@ -196,6 +196,31 @@ Draft --> Pending Review --> Approved --> Active
 
 ---
 
+## Data Contract Management
+
+Data contracts define operational commitments for registered APIs: contacts, SLAs, change management policies, and schema constraints. As an administrator, you should understand how contracts work even though teams manage their own.
+
+### How contracts work
+
+- Contract fields are set when an API is first registered, or added/updated later via `PATCH /api-registry/{id}/contract`.
+- Contract updates **do not require re-approval**. Teams can update contacts, SLA targets, and policies on active APIs at any time.
+- The `max_request_size_kb` field is **enforced in Kong** via the `request-size-limiting` plugin. When updated on an active API, the Kong plugin is synced automatically.
+- All other SLA fields (latency targets, uptime, error budget) are **informational** -- they define the commitment but are not enforced at the gateway layer.
+
+### Public API Catalog
+
+The public catalog at `/public/api-catalog` is an unauthenticated endpoint that lets subscribers browse active APIs and their contracts. It:
+- Only shows APIs in `active` status
+- Excludes internal fields (upstream URL, Kong IDs, reviewer info, team ID)
+- Supports search by name or slug
+- Supports pagination
+
+### Audit trail
+
+Contract updates are logged in the audit system with action `update_contract`. Review the audit log at `/rbac/audit` filtered by `resource_type=api_registration` to see contract change history.
+
+---
+
 ## Kong Gateway Management
 
 Direct gateway management is available at **Gateway** (`/gateway`). This page provides visibility into and control over Kong's resources.

@@ -315,7 +315,7 @@ class TeamBase(BaseModel):
     slug: str = Field(..., max_length=128, pattern=r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
     description: Optional[str] = None
     contact_email: EmailStr
-    metadata: Optional[dict] = None
+    metadata: Optional[dict] = Field(None, validation_alias="metadata_")
 
 
 class TeamCreate(TeamBase):
@@ -387,6 +387,35 @@ class ApiRegistrationBase(BaseModel):
     rate_limit_hour: int = Field(3000, ge=0)
     auth_type: str = Field("key-auth", pattern=r"^(key-auth|oauth2|jwt|none)$")
     requires_approval: bool = True
+    # Data Contract — Contacts
+    contact_primary_email: Optional[str] = Field(None, max_length=320)
+    contact_escalation_email: Optional[str] = Field(None, max_length=320)
+    contact_slack_channel: Optional[str] = Field(None, max_length=128)
+    contact_pagerduty_service: Optional[str] = Field(None, max_length=256)
+    contact_support_url: Optional[str] = None
+    # Data Contract — SLAs
+    sla_uptime_target: Optional[float] = Field(None, ge=0, le=100)
+    sla_latency_p50_ms: Optional[int] = Field(None, ge=0)
+    sla_latency_p95_ms: Optional[int] = Field(None, ge=0)
+    sla_latency_p99_ms: Optional[int] = Field(None, ge=0)
+    sla_error_budget_pct: Optional[float] = Field(None, ge=0, le=100)
+    sla_support_hours: Optional[str] = Field(None, max_length=64)
+    # Data Contract — Change Management
+    deprecation_notice_days: int = Field(90, ge=0)
+    breaking_change_policy: str = Field("semver", pattern=r"^(semver|date-based|never-break|custom)$")
+    versioning_scheme: str = Field("url-path", pattern=r"^(url-path|header|query-param|content-type)$")
+    changelog_url: Optional[str] = None
+    # Data Contract — Schema
+    openapi_spec_url: Optional[str] = None
+    max_request_size_kb: int = Field(128, ge=1, le=102400)
+    max_response_size_kb: Optional[int] = Field(None, ge=1)
+    # Caching
+    cache_enabled: bool = False
+    cache_ttl_seconds: int = Field(300, ge=1, le=86400)
+    cache_methods: Optional[list[str]] = Field(default=["GET", "HEAD"])
+    cache_content_types: Optional[list[str]] = Field(default=["application/json"])
+    cache_vary_headers: Optional[list[str]] = Field(default=["Accept"])
+    cache_bypass_on_auth: bool = True
 
 
 class ApiRegistrationCreate(ApiRegistrationBase):
@@ -423,6 +452,108 @@ class ApiRegistrationUpdate(BaseModel):
     rate_limit_hour: Optional[int] = Field(None, ge=0)
     auth_type: Optional[str] = None
     requires_approval: Optional[bool] = None
+    # Data Contract fields (also updatable via dedicated /contract endpoint)
+    contact_primary_email: Optional[str] = Field(None, max_length=320)
+    contact_escalation_email: Optional[str] = Field(None, max_length=320)
+    contact_slack_channel: Optional[str] = Field(None, max_length=128)
+    contact_pagerduty_service: Optional[str] = Field(None, max_length=256)
+    contact_support_url: Optional[str] = None
+    sla_uptime_target: Optional[float] = Field(None, ge=0, le=100)
+    sla_latency_p50_ms: Optional[int] = Field(None, ge=0)
+    sla_latency_p95_ms: Optional[int] = Field(None, ge=0)
+    sla_latency_p99_ms: Optional[int] = Field(None, ge=0)
+    sla_error_budget_pct: Optional[float] = Field(None, ge=0, le=100)
+    sla_support_hours: Optional[str] = Field(None, max_length=64)
+    deprecation_notice_days: Optional[int] = Field(None, ge=0)
+    breaking_change_policy: Optional[str] = Field(None, pattern=r"^(semver|date-based|never-break|custom)$")
+    versioning_scheme: Optional[str] = Field(None, pattern=r"^(url-path|header|query-param|content-type)$")
+    changelog_url: Optional[str] = None
+    openapi_spec_url: Optional[str] = None
+    max_request_size_kb: Optional[int] = Field(None, ge=1, le=102400)
+    max_response_size_kb: Optional[int] = Field(None, ge=1)
+    # Caching
+    cache_enabled: Optional[bool] = None
+    cache_ttl_seconds: Optional[int] = Field(None, ge=1, le=86400)
+    cache_methods: Optional[list[str]] = None
+    cache_content_types: Optional[list[str]] = None
+    cache_vary_headers: Optional[list[str]] = None
+    cache_bypass_on_auth: Optional[bool] = None
+
+
+class DataContractUpdate(BaseModel):
+    """Update data contract fields independently of core registration fields."""
+    # Contacts
+    contact_primary_email: Optional[str] = Field(None, max_length=320)
+    contact_escalation_email: Optional[str] = Field(None, max_length=320)
+    contact_slack_channel: Optional[str] = Field(None, max_length=128)
+    contact_pagerduty_service: Optional[str] = Field(None, max_length=256)
+    contact_support_url: Optional[str] = None
+    # SLAs
+    sla_uptime_target: Optional[float] = Field(None, ge=0, le=100)
+    sla_latency_p50_ms: Optional[int] = Field(None, ge=0)
+    sla_latency_p95_ms: Optional[int] = Field(None, ge=0)
+    sla_latency_p99_ms: Optional[int] = Field(None, ge=0)
+    sla_error_budget_pct: Optional[float] = Field(None, ge=0, le=100)
+    sla_support_hours: Optional[str] = Field(None, max_length=64)
+    # Change Management
+    deprecation_notice_days: Optional[int] = Field(None, ge=0)
+    breaking_change_policy: Optional[str] = Field(None, pattern=r"^(semver|date-based|never-break|custom)$")
+    versioning_scheme: Optional[str] = Field(None, pattern=r"^(url-path|header|query-param|content-type)$")
+    changelog_url: Optional[str] = None
+    # Schema
+    openapi_spec_url: Optional[str] = None
+    max_request_size_kb: Optional[int] = Field(None, ge=1, le=102400)
+    max_response_size_kb: Optional[int] = Field(None, ge=1)
+    # Caching
+    cache_enabled: Optional[bool] = None
+    cache_ttl_seconds: Optional[int] = Field(None, ge=1, le=86400)
+    cache_methods: Optional[list[str]] = None
+    cache_content_types: Optional[list[str]] = None
+    cache_vary_headers: Optional[list[str]] = None
+    cache_bypass_on_auth: Optional[bool] = None
+
+
+class PublicApiCatalogEntry(OrmModel):
+    """Public-facing API catalog entry. Excludes internal fields."""
+    name: str
+    slug: str
+    description: Optional[str] = None
+    version: str
+    api_type: str
+    documentation_url: Optional[str] = None
+    gateway_path: Optional[str] = None
+    auth_type: str
+    tags: Optional[list[str]] = None
+    status: str
+    # Rate limits
+    rate_limit_second: int = 0
+    rate_limit_minute: int = 0
+    rate_limit_hour: int = 0
+    # Data Contract — Contacts
+    contact_primary_email: Optional[str] = None
+    contact_escalation_email: Optional[str] = None
+    contact_slack_channel: Optional[str] = None
+    contact_pagerduty_service: Optional[str] = None
+    contact_support_url: Optional[str] = None
+    # Data Contract — SLAs
+    sla_uptime_target: Optional[float] = None
+    sla_latency_p50_ms: Optional[int] = None
+    sla_latency_p95_ms: Optional[int] = None
+    sla_latency_p99_ms: Optional[int] = None
+    sla_error_budget_pct: Optional[float] = None
+    sla_support_hours: Optional[str] = None
+    # Data Contract — Change Management
+    deprecation_notice_days: int = 90
+    breaking_change_policy: str = "semver"
+    versioning_scheme: str = "url-path"
+    changelog_url: Optional[str] = None
+    # Data Contract — Schema
+    openapi_spec_url: Optional[str] = None
+    max_request_size_kb: int = 128
+    max_response_size_kb: Optional[int] = None
+    # Caching
+    cache_enabled: bool = False
+    cache_ttl_seconds: int = 300
 
 
 class ApiRegistrationReview(BaseModel):

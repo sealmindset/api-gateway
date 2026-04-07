@@ -592,7 +592,16 @@ ai_prompts (standalone)
 |--------------------|------------------------------------------------------|--------------------------------------------|
 | `teams`            | `id` (UUID PK), `name`, `slug` (unique), `contact_email`, `metadata` (JSONB), `is_active` | Organizational unit that owns APIs. |
 | `team_members`     | `id` (UUID PK), `team_id` FK, `user_id` FK, `role` (`owner`/`admin`/`member`/`viewer`) | Unique on `(team_id, user_id)`. |
-| `api_registrations`| `id` (UUID PK), `team_id` FK, `slug` (unique), `upstream_url`, `upstream_protocol`, `kong_service_id`, `kong_route_id`, `gateway_path`, `auth_type`, `status`, `reviewed_by` FK | Supports REST, GraphQL, gRPC, WebSocket API types. Status workflow: draft -> submitted -> approved/rejected -> active -> deprecated -> retired. Rate limits per second/minute/hour. |
+| `api_registrations`| `id` (UUID PK), `team_id` FK, `slug` (unique), `upstream_url`, `upstream_protocol`, `kong_service_id`, `kong_route_id`, `gateway_path`, `auth_type`, `status`, `reviewed_by` FK, plus 18 data contract columns (see below) | Supports REST, GraphQL, gRPC, WebSocket API types. Status workflow: draft -> submitted -> approved/rejected -> active -> deprecated -> retired. Rate limits per second/minute/hour. Data contract fields for contacts, SLAs, change management, and schema. |
+
+**Data Contract Columns on `api_registrations`:**
+
+| Category | Columns |
+|----------|---------|
+| Contacts | `contact_primary_email`, `contact_escalation_email`, `contact_slack_channel`, `contact_pagerduty_service`, `contact_support_url` |
+| SLAs | `sla_uptime_target` (NUMERIC 5,2), `sla_latency_p50_ms`, `sla_latency_p95_ms`, `sla_latency_p99_ms`, `sla_error_budget_pct` (NUMERIC 5,2), `sla_support_hours` |
+| Change Mgmt | `deprecation_notice_days` (default 90), `breaking_change_policy` (default `semver`), `versioning_scheme` (default `url-path`), `changelog_url` |
+| Schema | `openapi_spec_url`, `max_request_size_kb` (default 128, enforced in Kong), `max_response_size_kb` |
 
 #### Subscribers and Subscriptions
 

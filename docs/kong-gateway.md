@@ -252,10 +252,46 @@ When an API registration is activated through the admin panel, Kong is configure
    - `rate-limiting` with limits from the registration configuration
    - The appropriate auth plugin (key-auth, oauth2, etc.)
    - `prometheus` with per-consumer tracking enabled
+   - `request-size-limiting` with `allowed_payload_size` set to the registration's `max_request_size_kb` (default 128 KB)
 
 ### On Retirement
 
 When an API registration is retired, the corresponding Kong service and route are **deleted** from the gateway. Consumers that only accessed the retired API will receive `404` responses.
+
+### On Contract Update
+
+When a data contract is updated on an active API (`PATCH /api-registry/{id}/contract`) and the `max_request_size_kb` field is changed, the Kong `request-size-limiting` plugin is automatically updated. The admin panel checks for an existing plugin on the service and either creates or patches it:
+
+- If the plugin exists: `PATCH /services/{svc}/plugins/{plugin_id}` with the new size
+- If no plugin exists: `POST /services/{svc}/plugins` to create it
+
+This keeps Kong enforcement in sync with the data contract without requiring re-activation.
+
+### Proxy Cache Plugin
+
+APIs with `cache_enabled=true` in their data contract get a `proxy-cache` plugin attached to their Kong service. This caches responses in memory to reduce upstream load and improve latency for repeat requests.
+
+**Configuration (from data contract):**
+
+| Data Contract Field | Kong Plugin Config | Default |
+|---|---|---|
+| `cache_ttl_seconds` | `cache_ttl` | 300 |
+| `cache_methods` | `request_method` | `["GET", "HEAD"]` |
+| `cache_content_types` | `content_type` | `["application/json"]` |
+| `cache_vary_headers` | `vary_headers` | `["Accept"]` |
+
+**Fixed settings:**
+- `strategy`: `memory` (Kong CE 3.9 limitation — Redis strategy requires Kong Enterprise)
+- `response_code`: `[200, 301, 302]`
+- `cache_control`: `true` (respects upstream `Cache-Control` headers)
+- `storage_ttl`: `cache_ttl * 2` (internal storage buffer)
+
+**Lifecycle:**
+- On activation: plugin created if `cache_enabled=true`
+- On contract update: plugin created/updated/removed based on `cache_enabled`
+- Disabling cache removes the plugin entirely (no stale cache)
+
+**Safe defaults:** Caching is **disabled by default**. The `cache_bypass_on_auth` advisory flag (default `true`) reminds teams that caching personalized or PII-containing responses requires careful evaluation.
 
 ---
 
