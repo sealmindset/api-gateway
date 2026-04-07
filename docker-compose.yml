@@ -191,7 +191,7 @@ services:
     ports:
       - "${KONG_PROXY_PORT:-8000}:8000"      # Proxy HTTP
       - "${KONG_PROXY_SSL_PORT:-8443}:8443"  # Proxy HTTPS
-      - "${KONG_ADMIN_PORT:-8001}:8001"      # Admin API
+      - "127.0.0.1:${KONG_ADMIN_PORT:-8001}:8001"  # Admin API (localhost only)
       - "${KONG_STATUS_PORT:-8100}:8100"      # Prometheus metrics
     depends_on:
       kong-migrations:

@@ -11,19 +11,19 @@
   - `admin-panel/app/ai/safety/errors.py` -- provider error sanitization with safe client messages
 - **Verification:** `AI_SAFETY_AVAILABLE = True` confirmed in base provider
 
-## Remaining nemo-it Findings
+### ~~MED-001: Dockerfile missing USER (dev stage)~~ DONE
+- Added `USER node` to development stage of `frontend/Dockerfile`
 
-### MED-001: Dockerfile missing USER (dev stage)
-- Add `USER node` to development stage of `frontend/Dockerfile`
+### ~~MED-002: Kong Admin API on all interfaces~~ DONE
+- Bound Kong admin port to `127.0.0.1` in docker-compose.yml
 
-### MED-002: Kong Admin API on all interfaces
-- Bind to `127.0.0.1` in docker-compose.yml
+### ~~MED-003: Default credentials in docker-compose~~ DONE
+- Created `scripts/validate-secrets.sh` — warns in dev, fatally exits in other environments
+- Updated `.env.example` with safe placeholder for Grafana password
 
-### MED-003: Default credentials in docker-compose
-- Add startup validation script for non-dev environments
+### ~~MED-004: Grafana default admin credentials~~ DONE
+- Set unique generated password in `.env`
+- Updated `.env.example` placeholder to `change_me_grafana`
 
-### MED-004: Grafana default admin credentials
-- Override via `.env` in all non-local environments
-
-### LOW-001: Dockerfile missing HEALTHCHECK
-- Add `HEALTHCHECK` to production stage of `frontend/Dockerfile`
+### ~~LOW-001: Dockerfile missing HEALTHCHECK~~ DONE
+- Added `HEALTHCHECK` to production stage of `frontend/Dockerfile`
