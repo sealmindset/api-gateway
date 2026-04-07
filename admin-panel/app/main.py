@@ -101,7 +101,7 @@ def create_app() -> FastAPI:
             "frame-ancestors 'none'"
         )
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers.pop("server", None)
+        response.headers["server"] = ""
         return response
 
     # -- Routers ------------------------------------------------------------

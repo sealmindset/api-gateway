@@ -37,7 +37,8 @@ CMD ["uvicorn", "app.main:app", \
      "--host", "0.0.0.0", \
      "--port", "8080", \
      "--reload", \
-     "--reload-dir", "app"]
+     "--reload-dir", "app", \
+     "--no-server-header"]
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
     CMD ["curl", "-f", "http://localhost:8080/health"]
