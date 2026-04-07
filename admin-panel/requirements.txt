@@ -14,7 +14,7 @@ pydantic-settings==2.7.1
 pydantic[email]
 
 # Authentication (OIDC / OAuth2)
-authlib==1.4.1
+authlib==1.6.9
 itsdangerous==2.2.0
 httpx==0.28.1
 
@@ -22,8 +22,8 @@ httpx==0.28.1
 redis[hiredis]==5.2.1
 
 # Security
-python-multipart==0.0.20
-cryptography==44.0.0
+python-multipart==0.0.22
+cryptography==46.0.6
 
 # AI / Claude
 anthropic>=0.42.0
