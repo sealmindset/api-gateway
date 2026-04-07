@@ -1,16 +1,15 @@
-FROM python:3.12-slim AS base
+FROM python:3.12-alpine AS base
 
 # Prevent Python from writing .pyc files and enable unbuffered stdout/stderr
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 # Create non-root user
-RUN groupadd --gid 1000 appuser && \
-    useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser
+RUN addgroup -g 1000 appuser && \
+    adduser -u 1000 -G appuser -s /bin/sh -D appuser
 
-# Install curl for healthchecks
-RUN apt-get update && apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
+# Install curl for healthchecks and build deps for compiled Python packages
+RUN apk add --no-cache curl build-base libffi-dev
 
 WORKDIR /app
 
