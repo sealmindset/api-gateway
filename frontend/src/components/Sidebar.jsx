@@ -14,6 +14,8 @@ const nav = [
   {
     label: 'Management',
     items: [
+      { name: 'Teams', href: '/teams', icon: TeamIcon },
+      { name: 'API Registry', href: '/api-registry', icon: RegistryIcon },
       { name: 'Subscribers', href: '/subscribers', icon: UsersIcon },
       { name: 'API Keys', href: '/api-keys', icon: KeyIcon },
       { name: 'Plans', href: '/plans', icon: LayersIcon },
@@ -30,6 +32,7 @@ const nav = [
     label: 'Infrastructure',
     items: [
       { name: 'Gateway', href: '/gateway', icon: ServerIcon },
+      { name: 'Access Control', href: '/rbac', icon: ShieldIcon },
       { name: 'Settings', href: '/settings', icon: GearIcon },
     ],
   },
@@ -39,15 +42,15 @@ export default function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-gray-200 bg-white">
+    <aside className="flex h-screen w-64 flex-col border-r border-border bg-card">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-gray-200 px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
+      <div className="flex h-16 items-center gap-3 border-b border-border px-6">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
           AG
         </div>
         <div>
-          <div className="text-sm font-semibold text-gray-900">API Gateway</div>
-          <div className="text-xs text-gray-500">Admin Panel</div>
+          <div className="text-sm font-semibold text-card-foreground">API Gateway</div>
+          <div className="text-xs text-muted-foreground">Admin Panel</div>
         </div>
       </div>
 
@@ -55,7 +58,7 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         {nav.map((group) => (
           <div key={group.label} className="mb-6">
-            <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {group.label}
             </div>
             {group.items.map((item) => {
@@ -65,13 +68,13 @@ export default function Sidebar() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'mb-0.5 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
                     active
-                      ? 'bg-brand-50 text-brand-700'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-accent text-accent-foreground font-medium'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
                   )}
                 >
-                  <item.icon className={cn('h-5 w-5', active ? 'text-brand-600' : 'text-gray-400')} />
+                  <item.icon className={cn('h-5 w-5', active ? 'text-primary' : 'text-muted-foreground')} />
                   {item.name}
                 </Link>
               )
@@ -81,8 +84,8 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-gray-200 px-6 py-3">
-        <div className="text-xs text-gray-400">Sleep Number Platform Engineering</div>
+      <div className="border-t border-border px-6 py-3">
+        <div className="text-xs text-muted-foreground">Sleep Number Platform Engineering</div>
       </div>
     </aside>
   )
@@ -142,6 +145,30 @@ function PromptIcon({ className }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+    </svg>
+  )
+}
+
+function TeamIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+    </svg>
+  )
+}
+
+function RegistryIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
+    </svg>
+  )
+}
+
+function ShieldIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
     </svg>
   )
 }

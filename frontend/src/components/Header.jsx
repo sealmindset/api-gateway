@@ -1,6 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { ModeToggle } from '@/components/mode-toggle'
 
 const titles = [
   ['/dashboard', 'Dashboard'],
@@ -18,14 +19,16 @@ export default function Header() {
   const title = titles.find(([k]) => pathname?.startsWith(k))?.[1] || 'Dashboard'
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-gray-200 bg-white/80 px-8 backdrop-blur">
-      <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
-      <div className="flex items-center gap-4">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-          <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-4">
+      <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+      <div className="flex-1" />
+      <div className="flex items-center gap-3">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
+          <span className="h-1.5 w-1.5 rounded-full bg-success" />
           Healthy
         </span>
-        <div className="h-8 w-8 rounded-full bg-brand-600 text-center text-sm font-semibold leading-8 text-white">
+        <ModeToggle />
+        <div className="h-8 w-8 rounded-full bg-primary text-center text-sm font-semibold leading-8 text-primary-foreground">
           A
         </div>
       </div>

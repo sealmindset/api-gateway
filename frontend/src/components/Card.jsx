@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 
 export function Card({ className, children }) {
   return (
-    <div className={cn('rounded-xl border border-gray-200 bg-white p-6 shadow-sm', className)}>
+    <div className={cn('rounded-xl border border-border bg-card p-5 text-card-foreground shadow-sm transition-shadow hover:shadow-md', className)}>
       {children}
     </div>
   )
@@ -13,18 +13,18 @@ export function StatCard({ label, value, sub, trend, icon: Icon }) {
     <Card>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-500">{label}</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
-          {sub && <p className="mt-1 text-xs text-gray-400">{sub}</p>}
+          <p className="text-sm font-medium text-muted-foreground">{label}</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
+          {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
         </div>
         {Icon && (
-          <div className="rounded-lg bg-brand-50 p-2.5">
-            <Icon className="h-5 w-5 text-brand-600" />
+          <div className="rounded-lg bg-primary/10 p-2.5">
+            <Icon className="h-5 w-5 text-primary" />
           </div>
         )}
       </div>
       {trend !== undefined && (
-        <p className={cn('mt-3 text-xs font-medium', trend >= 0 ? 'text-green-600' : 'text-red-600')}>
+        <p className={cn('mt-3 text-xs font-medium', trend >= 0 ? 'text-success' : 'text-destructive')}>
           {trend >= 0 ? '+' : ''}{trend}% from last hour
         </p>
       )}
@@ -32,16 +32,18 @@ export function StatCard({ label, value, sub, trend, icon: Icon }) {
   )
 }
 
-export function Badge({ children, variant = 'default' }) {
+export function Badge({ children, variant = 'default', className }) {
   const styles = {
-    default: 'bg-gray-100 text-gray-800',
-    success: 'bg-green-100 text-green-800',
-    warning: 'bg-yellow-100 text-yellow-800',
-    danger: 'bg-red-100 text-red-800',
-    info: 'bg-blue-100 text-blue-800',
+    default: 'bg-secondary text-secondary-foreground',
+    success: 'bg-success/15 text-success',
+    warning: 'bg-warning/15 text-warning-foreground',
+    danger: 'bg-destructive/15 text-destructive',
+    destructive: 'bg-destructive/15 text-destructive',
+    info: 'bg-primary/15 text-primary',
+    primary: 'bg-primary/15 text-primary',
   }
   return (
-    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', styles[variant])}>
+    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', styles[variant], className)}>
       {children}
     </span>
   )
@@ -52,15 +54,15 @@ export function Table({ headers, children }) {
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
         <thead>
-          <tr className="border-b border-gray-200">
+          <tr className="border-b border-border">
             {headers.map((h) => (
-              <th key={h} className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              <th key={h} className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {h}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">{children}</tbody>
+        <tbody className="divide-y divide-border">{children}</tbody>
       </table>
     </div>
   )
@@ -69,23 +71,23 @@ export function Table({ headers, children }) {
 export function EmptyState({ title, description }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="mb-3 rounded-full bg-gray-100 p-4">
-        <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <div className="mb-3 rounded-full bg-muted p-4">
+        <svg className="h-8 w-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m6 4.125l2.25 2.25m0 0l2.25 2.25M12 13.875l2.25-2.25M12 13.875l-2.25 2.25M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
         </svg>
       </div>
-      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-      <p className="mt-1 text-sm text-gray-500">{description}</p>
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
     </div>
   )
 }
 
 export function Button({ children, variant = 'primary', size = 'md', className, ...props }) {
-  const base = 'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-50'
+  const base = 'inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
   const variants = {
-    primary: 'bg-brand-600 text-white hover:bg-brand-700',
-    secondary: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
-    danger: 'bg-red-600 text-white hover:bg-red-700',
+    primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
+    secondary: 'border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground',
+    danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
   }
   const sizes = {
     sm: 'px-3 py-1.5 text-xs',

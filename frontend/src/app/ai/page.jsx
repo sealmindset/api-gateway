@@ -33,7 +33,7 @@ export default function AIPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
       </div>
     )
   }
@@ -48,7 +48,7 @@ export default function AIPage() {
   return (
     <div className="space-y-6">
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-border">
         <nav className="-mb-px flex gap-6">
           {tabs.map((tab) => (
             <button
@@ -56,8 +56,8 @@ export default function AIPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`border-b-2 pb-3 text-sm font-medium transition-colors ${
                 activeTab === tab.id
-                  ? 'border-brand-600 text-brand-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:border-border hover:text-accent-foreground'
               }`}
             >
               {tab.label}
@@ -85,8 +85,8 @@ function OverviewTab({ stats, analyses, anomalies }) {
       </div>
 
       <Card>
-        <h2 className="mb-2 text-base font-semibold text-gray-900">AI-Powered Intelligence Layer</h2>
-        <p className="text-sm text-gray-600 leading-relaxed">
+        <h2 className="mb-2 text-base font-semibold text-foreground">AI-Powered Intelligence Layer</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
           The AI layer uses Claude (via Azure AI Foundry) to provide real-time anomaly detection,
           intelligent rate limiting suggestions, smart routing decisions, request/response transformation,
           and automated API documentation generation. Analysis results are cached for performance
@@ -101,9 +101,9 @@ function OverviewTab({ stats, analyses, anomalies }) {
             { name: 'Response Transform', status: 'Available' },
             { name: 'Auto Documentation', status: 'Active' },
           ].map((cap) => (
-            <div key={cap.name} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
-              <span className={`h-2 w-2 rounded-full ${cap.status === 'Active' ? 'bg-green-500' : 'bg-yellow-400'}`} />
-              <span className="text-xs font-medium text-gray-700">{cap.name}</span>
+            <div key={cap.name} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+              <span className={`h-2 w-2 rounded-full ${cap.status === 'Active' ? 'bg-success' : 'bg-warning'}`} />
+              <span className="text-xs font-medium text-foreground">{cap.name}</span>
             </div>
           ))}
         </div>
@@ -125,11 +125,11 @@ function AnomaliesTab({ anomalies }) {
     <Card className="p-0">
       <Table headers={['Time', 'Score', 'Action', 'Source IP', 'Path', 'Reason']}>
         {anomalies.map((a, i) => (
-          <tr key={a.id || i} className="hover:bg-gray-50">
-            <td className="px-4 py-3 text-xs text-gray-500">{a.detected_at || a.created_at || '—'}</td>
+          <tr key={a.id || i} className="hover:bg-accent">
+            <td className="px-4 py-3 text-xs text-muted-foreground">{a.detected_at || a.created_at || '—'}</td>
             <td className="px-4 py-3">
               <span className={`font-mono text-sm font-bold ${
-                a.score >= 0.9 ? 'text-red-600' : a.score >= 0.7 ? 'text-yellow-600' : 'text-gray-600'
+                a.score >= 0.9 ? 'text-destructive' : a.score >= 0.7 ? 'text-warning-foreground' : 'text-muted-foreground'
               }`}>
                 {a.score?.toFixed(2) ?? '—'}
               </span>
@@ -139,9 +139,9 @@ function AnomaliesTab({ anomalies }) {
                 {a.action || 'log'}
               </Badge>
             </td>
-            <td className="px-4 py-3 font-mono text-xs text-gray-600">{a.source_ip || '—'}</td>
-            <td className="px-4 py-3 font-mono text-xs text-gray-600">{a.path || '—'}</td>
-            <td className="px-4 py-3 text-xs text-gray-600">{a.reason || '—'}</td>
+            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{a.source_ip || '—'}</td>
+            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{a.path || '—'}</td>
+            <td className="px-4 py-3 text-xs text-muted-foreground">{a.reason || '—'}</td>
           </tr>
         ))}
       </Table>
@@ -162,16 +162,16 @@ function AnalysesTab({ analyses }) {
     <Card className="p-0">
       <Table headers={['Time', 'Type', 'Model', 'Cost', 'Duration', 'Status']}>
         {analyses.map((a, i) => (
-          <tr key={a.id || i} className="hover:bg-gray-50">
-            <td className="px-4 py-3 text-xs text-gray-500">{a.created_at || '—'}</td>
+          <tr key={a.id || i} className="hover:bg-accent">
+            <td className="px-4 py-3 text-xs text-muted-foreground">{a.created_at || '—'}</td>
             <td className="px-4 py-3">
               <Badge variant="info">{a.analysis_type || a.type || '—'}</Badge>
             </td>
-            <td className="px-4 py-3 font-mono text-xs text-gray-600">{a.model || '—'}</td>
-            <td className="px-4 py-3 font-mono text-xs text-gray-600">
+            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{a.model || '—'}</td>
+            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
               {a.cost ? `$${a.cost.toFixed(4)}` : '—'}
             </td>
-            <td className="px-4 py-3 text-xs text-gray-600">
+            <td className="px-4 py-3 text-xs text-muted-foreground">
               {a.duration_ms ? `${a.duration_ms}ms` : '—'}
             </td>
             <td className="px-4 py-3">
@@ -190,7 +190,7 @@ function ConfigTab() {
   return (
     <div className="space-y-6">
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-gray-900">AI Provider Configuration</h2>
+        <h2 className="mb-4 text-base font-semibold text-foreground">AI Provider Configuration</h2>
         <div className="space-y-4">
           <ConfigRow label="Provider" value="anthropic_foundry" description="Azure AI Foundry (default)" />
           <ConfigRow label="Model" value="cogdep-aifoundry-dev-eus2-claude-sonnet-4-5" description="Claude model deployment" />
@@ -204,12 +204,12 @@ function ConfigTab() {
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-gray-900">Kong AI Plugin Settings</h2>
-        <p className="text-sm text-gray-600">
-          The <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">ai-gateway</code> Kong plugin
+        <h2 className="mb-4 text-base font-semibold text-foreground">Kong AI Plugin Settings</h2>
+        <p className="text-sm text-muted-foreground">
+          The <code className="rounded bg-muted px-1.5 py-0.5 text-xs">ai-gateway</code> Kong plugin
           intercepts requests during the access phase for anomaly detection and smart routing,
           and during the body_filter phase for response transformation. Configure via
-          Kong Admin API or the plugin configuration in <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs">kong.yml</code>.
+          Kong Admin API or the plugin configuration in <code className="rounded bg-muted px-1.5 py-0.5 text-xs">kong.yml</code>.
         </p>
       </Card>
     </div>
@@ -218,12 +218,12 @@ function ConfigTab() {
 
 function ConfigRow({ label, value, description }) {
   return (
-    <div className="flex items-start justify-between border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+    <div className="flex items-start justify-between border-b border-border pb-3 last:border-0 last:pb-0">
       <div>
-        <p className="text-sm font-medium text-gray-900">{label}</p>
-        <p className="text-xs text-gray-500">{description}</p>
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <code className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800">{value}</code>
+      <code className="rounded bg-muted px-2 py-1 text-xs font-medium text-foreground">{value}</code>
     </div>
   )
 }

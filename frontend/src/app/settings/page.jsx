@@ -6,7 +6,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-gray-900">Service Endpoints</h2>
+        <h2 className="mb-4 text-base font-semibold text-foreground">Service Endpoints</h2>
         <div className="space-y-3">
           <EndpointRow name="Kong Proxy" url="http://localhost:8800" status="healthy" />
           <EndpointRow name="Kong Admin API" url="http://localhost:8801" status="healthy" />
@@ -18,7 +18,7 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-gray-900">Authentication</h2>
+        <h2 className="mb-4 text-base font-semibold text-foreground">Authentication</h2>
         <div className="space-y-3">
           <SettingRow label="OIDC Provider" value="Microsoft Entra ID" />
           <SettingRow label="Auth Methods" value="OAuth2, API Key, Basic Auth" />
@@ -28,7 +28,7 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-gray-900">Infrastructure</h2>
+        <h2 className="mb-4 text-base font-semibold text-foreground">Infrastructure</h2>
         <div className="space-y-3">
           <SettingRow label="Database" value="PostgreSQL 16" />
           <SettingRow label="Cache" value="Redis 7" />
@@ -40,7 +40,7 @@ export default function SettingsPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-base font-semibold text-gray-900">Quick Links</h2>
+        <h2 className="mb-4 text-base font-semibold text-foreground">Quick Links</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <QuickLink name="Kong Admin API" href="http://localhost:8801" />
           <QuickLink name="FastAPI Docs (Swagger)" href="http://localhost:8880/docs" />
@@ -56,10 +56,10 @@ export default function SettingsPage() {
 
 function EndpointRow({ name, url, status }) {
   return (
-    <div className="flex items-center justify-between border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+    <div className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0">
       <div>
-        <p className="text-sm font-medium text-gray-900">{name}</p>
-        <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-600 hover:underline">{url}</a>
+        <p className="text-sm font-medium text-foreground">{name}</p>
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">{url}</a>
       </div>
       <Badge variant={status === 'healthy' ? 'success' : 'danger'}>{status}</Badge>
     </div>
@@ -68,9 +68,9 @@ function EndpointRow({ name, url, status }) {
 
 function SettingRow({ label, value }) {
   return (
-    <div className="flex items-center justify-between border-b border-gray-100 pb-3 last:border-0 last:pb-0">
-      <span className="text-sm text-gray-600">{label}</span>
-      <span className="text-sm font-medium text-gray-900">{value}</span>
+    <div className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium text-foreground">{value}</span>
     </div>
   )
 }
@@ -81,7 +81,7 @@ function QuickLink({ name, href }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
+      className="flex items-center gap-2 rounded-lg border border-border px-4 py-3 text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-primary/10 hover:text-primary"
     >
       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />

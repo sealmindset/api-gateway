@@ -256,6 +256,102 @@ class AuditLog(Base):
     user: Mapped[Optional["User"]] = relationship(back_populates="audit_logs")
 
 
+class Team(Base):
+    """Organizational unit that owns APIs."""
+
+    __tablename__ = "teams"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    slug: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    contact_email: Mapped[str] = mapped_column(String(320), nullable=False)
+    metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSONB, default=dict)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    members: Mapped[list["TeamMember"]] = relationship(back_populates="team", cascade="all, delete-orphan")
+    api_registrations: Mapped[list["ApiRegistration"]] = relationship(back_populates="team", cascade="all, delete-orphan")
+
+
+class TeamMember(Base):
+    """Maps users to teams with roles (owner, admin, member, viewer)."""
+
+    __tablename__ = "team_members"
+    __table_args__ = (
+        Index("ix_team_members_team_user", "team_id", "user_id", unique=True),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    team_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(32), nullable=False, default="member")
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    team: Mapped["Team"] = relationship(back_populates="members")
+    user: Mapped["User"] = relationship()
+
+
+class ApiRegistration(Base):
+    """An API registered by a team for exposure through the Kong gateway."""
+
+    __tablename__ = "api_registrations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    team_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # API metadata
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    slug: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    version: Mapped[str] = mapped_column(String(32), nullable=False, default="v1")
+    api_type: Mapped[str] = mapped_column(String(32), nullable=False, default="rest")
+    documentation_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    tags: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
+
+    # Upstream target
+    upstream_url: Mapped[str] = mapped_column(Text, nullable=False)
+    upstream_protocol: Mapped[str] = mapped_column(String(10), nullable=False, default="https")
+    health_check_path: Mapped[Optional[str]] = mapped_column(String(256), default="/health")
+
+    # Kong integration
+    kong_service_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    kong_route_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    gateway_path: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+
+    # Rate limits
+    rate_limit_second: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    rate_limit_minute: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    rate_limit_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=3000)
+
+    # Auth
+    auth_type: Mapped[str] = mapped_column(String(32), nullable=False, default="key-auth")
+    requires_approval: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    # Workflow
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft", index=True)
+    submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_by: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    activated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    team: Mapped["Team"] = relationship(back_populates="api_registrations")
+    reviewer: Mapped[Optional["User"]] = relationship(foreign_keys=[reviewed_by])
+
+
 class AIPrompt(Base):
     """AI prompt template managed via the admin panel."""
 

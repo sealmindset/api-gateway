@@ -222,6 +222,53 @@ async def list_user_roles(
 
 
 # ---------------------------------------------------------------------------
+# Users list (for admin assignment UI)
+# ---------------------------------------------------------------------------
+
+@router.get("/users", response_model=PaginatedResponse)
+async def list_users(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    search: Optional[str] = None,
+    _auth: User = Depends(require_permission("users:read")),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """List all users with their assigned roles."""
+    query = select(User)
+    count_query = select(func.count(User.id))
+
+    if search:
+        like = f"%{search}%"
+        query = query.where(User.name.ilike(like) | User.email.ilike(like))
+        count_query = count_query.where(User.name.ilike(like) | User.email.ilike(like))
+
+    total = (await db.execute(count_query)).scalar_one()
+    result = await db.execute(
+        query.order_by(User.name).offset((page - 1) * page_size).limit(page_size)
+    )
+    users = result.scalars().all()
+
+    # Enrich with role names
+    items = []
+    for u in users:
+        roles_result = await db.execute(
+            select(UserRole).where(UserRole.user_id == u.id).options(selectinload(UserRole.role))
+        )
+        role_names = [ur.role.name for ur in roles_result.scalars().all() if ur.role]
+        items.append({
+            "id": str(u.id),
+            "email": u.email,
+            "name": u.name,
+            "entra_oid": u.entra_oid,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "last_login": u.last_login.isoformat() if u.last_login else None,
+            "role_names": role_names,
+        })
+
+    return PaginatedResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+# ---------------------------------------------------------------------------
 # Permissions reference
 # ---------------------------------------------------------------------------
 

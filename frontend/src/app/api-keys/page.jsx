@@ -36,7 +36,7 @@ export default function ApiKeysPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
       </div>
     )
   }
@@ -45,7 +45,7 @@ export default function ApiKeysPage() {
     {
       accessorKey: 'username',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Username" />,
-      cell: ({ row }) => <span className="font-medium text-gray-900">{row.getValue('username')}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.getValue('username')}</span>,
       filterFn: 'arrIncludes',
     },
     {
@@ -78,7 +78,7 @@ export default function ApiKeysPage() {
       id: 'key_prefix',
       accessorFn: (row) => row.key?.slice(0, 12) || '',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Key (prefix)" />,
-      cell: ({ row }) => <span className="font-mono text-xs text-gray-900">{row.getValue('key_prefix')}...</span>,
+      cell: ({ row }) => <span className="font-mono text-xs text-foreground">{row.getValue('key_prefix')}...</span>,
       enableColumnFilter: false,
     },
     {

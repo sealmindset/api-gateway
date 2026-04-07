@@ -185,6 +185,7 @@ echo ""
 # ---------------------------------------------------------------------------
 log_info "Waiting for services to become healthy..."
 
+wait_for_healthy "mock-oidc" 20
 wait_for_healthy "postgres" 30
 wait_for_healthy "redis" 20
 wait_for_healthy "kong" 45
@@ -207,56 +208,17 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
-# Step 6: Seed default data
+# Step 6: Seed mock OIDC users and test data
 # ---------------------------------------------------------------------------
-log_info "Seeding default admin user..."
+log_info "Seeding mock OIDC users and role assignments..."
 
-# Source .env for database connection details
-set -a
-source .env
-set +a
+# Wait a moment for the admin-panel to finish seeding default roles on startup
+sleep 3
 
-# Create default super_admin user (password: admin - change immediately)
-docker compose exec -T postgres psql \
-    -U "${POSTGRES_USER:-postgres}" \
-    -d api_gateway_admin \
-    -c "
-    DO \$\$
-    DECLARE
-        v_role_id UUID;
-        v_user_id UUID;
-    BEGIN
-        -- Check if admin user already exists
-        IF EXISTS (SELECT 1 FROM users WHERE email = 'admin@localhost') THEN
-            RAISE NOTICE 'Default admin user already exists, skipping.';
-            RETURN;
-        END IF;
+# Run the mock user seed script
+"${PROJECT_ROOT}/scripts/seed-mock-users.sh"
 
-        -- Get super_admin role
-        SELECT id INTO v_role_id FROM roles WHERE name = 'super_admin';
-
-        -- Create admin user (password: 'admin' hashed with pgcrypto)
-        INSERT INTO users (email, username, password_hash, first_name, last_name, is_active, is_verified)
-        VALUES (
-            'admin@localhost',
-            'admin',
-            crypt('admin', gen_salt('bf', 12)),
-            'System',
-            'Administrator',
-            TRUE,
-            TRUE
-        )
-        RETURNING id INTO v_user_id;
-
-        -- Assign super_admin role
-        INSERT INTO user_roles (user_id, role_id) VALUES (v_user_id, v_role_id);
-
-        RAISE NOTICE 'Default admin user created successfully.';
-    END
-    \$\$;
-    " 2>/dev/null
-
-log_success "Default data seeded"
+log_success "Mock users and test data seeded"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -269,12 +231,13 @@ echo ""
 echo "  Service URLs:"
 echo "  -------------------------------------------"
 echo -e "  Admin UI:        ${GREEN}http://localhost:${FRONTEND_PORT:-3000}${NC}"
-echo -e "  Admin Panel API: ${GREEN}http://localhost:${ADMIN_PANEL_PORT:-8880}${NC}"
-echo -e "  Kong Proxy:      ${GREEN}http://localhost:${KONG_PROXY_PORT:-8800}${NC}"
-echo -e "  Kong Admin API:  ${GREEN}http://localhost:${KONG_ADMIN_PORT:-8801}${NC}"
-echo -e "  Prometheus:      ${GREEN}http://localhost:${PROMETHEUS_PORT:-9190}${NC}"
-echo -e "  Grafana:         ${GREEN}http://localhost:${GRAFANA_PORT:-3200}${NC}"
-echo -e "  Cribl Stream:    ${GREEN}http://localhost:${CRIBL_PORT:-9421}${NC}"
+echo -e "  Admin Panel API: ${GREEN}http://localhost:${ADMIN_PANEL_PORT:-8080}${NC}"
+echo -e "  Kong Proxy:      ${GREEN}http://localhost:${KONG_PROXY_PORT:-8000}${NC}"
+echo -e "  Kong Admin API:  ${GREEN}http://localhost:${KONG_ADMIN_PORT:-8001}${NC}"
+echo -e "  Mock OIDC Login: ${GREEN}http://localhost:${MOCK_OIDC_PORT:-8180}${NC}"
+echo -e "  Prometheus:      ${GREEN}http://localhost:${PROMETHEUS_PORT:-9090}${NC}"
+echo -e "  Grafana:         ${GREEN}http://localhost:${GRAFANA_PORT:-3000}${NC}"
+echo -e "  Cribl Stream:    ${GREEN}http://localhost:${CRIBL_PORT:-9420}${NC}"
 echo ""
 echo "  Database:"
 echo "  -------------------------------------------"
@@ -300,9 +263,17 @@ fi
 echo -e "  Sampling Rate:   ${GREEN}${AI_SAMPLING_RATE:-0.1}${NC}"
 echo -e "  Cost Ceiling:    ${GREEN}\$${AI_MAX_COST_PER_ANALYSIS:-0.50}/analysis${NC}"
 echo ""
-echo "  Default Credentials:"
+echo "  Mock OIDC Test Accounts:"
 echo "  -------------------------------------------"
-echo "  Admin Panel:     admin@localhost / admin"
+echo "  admin    / admin      → super_admin (full access)"
+echo "  operator / operator   → operator (ops, no API approval)"
+echo "  teamlead / teamlead   → operator + team owner"
+echo "  developer / developer → team member only"
+echo "  viewer   / viewer     → read-only"
+echo "  newuser  / newuser    → no roles (auto-provisioning test)"
+echo ""
+echo "  Other Credentials:"
+echo "  -------------------------------------------"
 echo "  Grafana:         admin / admin"
 echo ""
 echo -e "  ${YELLOW}WARNING: Change default passwords before"

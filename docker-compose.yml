@@ -79,6 +79,61 @@ services:
       retries: 5
 
   # ---------------------------------------------------------------------------
+  # Mock OIDC Provider - Local development identity provider
+  # ---------------------------------------------------------------------------
+  # Replaces Entra ID for local testing. Provides standard OIDC endpoints
+  # with pre-configured test users at various permission levels.
+  #
+  # Login page:   http://localhost:8180
+  # Discovery:    http://localhost:8180/.well-known/openid-configuration
+  #
+  # Test accounts (username / password):
+  #   admin    / admin      → Platform Admin (super_admin)
+  #   operator / operator   → DevOps Operator (operator)
+  #   teamlead / teamlead   → API Team Lead (operator + team owner)
+  #   developer / developer → Team Developer (no platform role, team member)
+  #   viewer   / viewer     → Read Only User (viewer)
+  #   newuser  / newuser    → New Employee (no roles - tests auto-provisioning)
+  # ---------------------------------------------------------------------------
+  mock-oidc:
+    image: ghcr.io/soluto/oidc-server-mock:0.8.6
+    container_name: api-gw-mock-oidc
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      SERVER_OPTIONS_INLINE: |
+        {
+          "AccessTokenJwtType": "JWT",
+          "Discovery": {
+            "ShowKeySet": true
+          },
+          "Authentication": {
+            "CookieSameSiteMode": "Lax",
+            "CheckSessionCookieSameSiteMode": "Lax"
+          }
+        }
+      LOGIN_OPTIONS_INLINE: |
+        {
+          "AllowRememberLogin": false
+        }
+      USERS_CONFIGURATION_PATH: /tmp/config/users.json
+      CLIENTS_CONFIGURATION_PATH: /tmp/config/clients.json
+      ASPNETCORE_URLS: http://*:8080
+    volumes:
+      - ./mock-oidc/users.json:/tmp/config/users.json:ro
+      - ./mock-oidc/clients.json:/tmp/config/clients.json:ro
+    ports:
+      - "${MOCK_OIDC_PORT:-8180}:8080"
+    networks:
+      - api-gateway-net
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/.well-known/openid-configuration"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
   # Kong Migrations - Run database migrations before Kong starts
   # ---------------------------------------------------------------------------
   kong-migrations:
@@ -171,8 +226,12 @@ services:
       REDIS_URL: "redis://:${REDIS_PASSWORD:-redis_local_dev}@redis:6379/0"
       # Kong Admin API
       KONG_ADMIN_URL: "http://kong:8001"
-      # Auth
+      # Auth -- uses mock OIDC provider for local dev (override with real Entra for staging/prod)
       SECRET_KEY: ${SECRET_KEY:-local-dev-secret-key-change-in-production}
+      ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-api-gateway-local}
+      ENTRA_CLIENT_SECRET: ${ENTRA_CLIENT_SECRET:-mock-client-secret}
+      ENTRA_REDIRECT_URI: ${ENTRA_REDIRECT_URI:-http://localhost:8080/auth/callback}
+      OIDC_DISCOVERY_URL: ${OIDC_DISCOVERY_URL:-http://mock-oidc:8080/.well-known/openid-configuration}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       # AI / Claude -- defaults to Azure AI Foundry; set AI_PROVIDER=claude for direct API
       AI_PROVIDER: ${AI_PROVIDER:-anthropic_foundry}
@@ -196,6 +255,8 @@ services:
       redis:
         condition: service_healthy
       kong:
+        condition: service_healthy
+      mock-oidc:
         condition: service_healthy
     networks:
       - api-gateway-net
@@ -237,6 +298,60 @@ services:
       start_period: 30s
 
   # ---------------------------------------------------------------------------
+  # OWASP ZAP - Security Scanner (Passive/Active mode)
+  # ---------------------------------------------------------------------------
+  zap:
+    build:
+      context: ./security/zap
+      dockerfile: Dockerfile
+    container_name: api-gw-zap
+    restart: unless-stopped
+    ports:
+      - "${ZAP_PROXY_PORT:-8290}:8090"      # ZAP API + Proxy (combined port)
+    networks:
+      - api-gateway-net
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8090/JSON/core/view/version/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  # ---------------------------------------------------------------------------
+  # ZAP Exporter - Metrics bridge (ZAP -> Prometheus + Cribl)
+  # ---------------------------------------------------------------------------
+  zap-exporter:
+    build:
+      context: ./security/zap-exporter
+      dockerfile: Dockerfile
+    container_name: api-gw-zap-exporter
+    restart: unless-stopped
+    environment:
+      ZAP_API_URL: "http://zap:8090"
+      ZAP_SCAN_MODE: ${ZAP_SCAN_MODE:-passive}
+      ZAP_SCAN_INTERVAL_MINUTES: ${ZAP_SCAN_INTERVAL_MINUTES:-5}
+      ZAP_TARGET_URLS: "http://kong:8000/health,http://admin-panel:8080/health,http://admin-panel:8080/docs"
+      CRIBL_STREAM_URL: ${CRIBL_STREAM_URL:-http://cribl:9081/api/v1/zap}
+      CRIBL_STREAM_TOKEN: ${CRIBL_STREAM_TOKEN:-}
+      KONG_ADMIN_URL: "http://kong:8001"
+      LOG_LEVEL: ${ZAP_LOG_LEVEL:-INFO}
+    ports:
+      - "${ZAP_EXPORTER_PORT:-9290}:9290"   # Prometheus metrics
+    depends_on:
+      zap:
+        condition: service_healthy
+      kong:
+        condition: service_healthy
+    networks:
+      - api-gateway-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:9290/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
   # Prometheus - Metrics collection
   # ---------------------------------------------------------------------------
   prometheus:
@@ -274,13 +389,13 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_SERVER_ROOT_URL: "http://localhost:${GRAFANA_PORT:-3000}"
+      GF_SERVER_ROOT_URL: "http://localhost:${GRAFANA_PORT:-3200}"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
-      - "${GRAFANA_PORT:-3000}:3000"
+      - "${GRAFANA_PORT:-3200}:3000"
     depends_on:
       prometheus:
         condition: service_healthy

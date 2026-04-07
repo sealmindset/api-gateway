@@ -307,6 +307,134 @@ class PaginatedResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Team
+# ---------------------------------------------------------------------------
+
+class TeamBase(BaseModel):
+    name: str = Field(..., max_length=256)
+    slug: str = Field(..., max_length=128, pattern=r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
+    description: Optional[str] = None
+    contact_email: EmailStr
+    metadata: Optional[dict] = None
+
+
+class TeamCreate(TeamBase):
+    pass
+
+
+class TeamRead(TeamBase, OrmModel):
+    id: uuid.UUID
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class TeamUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=256)
+    description: Optional[str] = None
+    contact_email: Optional[EmailStr] = None
+    metadata: Optional[dict] = None
+    is_active: Optional[bool] = None
+
+
+class TeamDetail(TeamRead):
+    """Team with member count and API count."""
+    member_count: int = 0
+    api_count: int = 0
+
+
+# ---------------------------------------------------------------------------
+# Team Member
+# ---------------------------------------------------------------------------
+
+class TeamMemberAdd(BaseModel):
+    user_id: uuid.UUID
+    role: str = Field("member", pattern=r"^(owner|admin|member|viewer)$")
+
+
+class TeamMemberRead(OrmModel):
+    id: uuid.UUID
+    team_id: uuid.UUID
+    user_id: uuid.UUID
+    role: str
+    joined_at: datetime
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
+
+
+class TeamMemberUpdate(BaseModel):
+    role: str = Field(..., pattern=r"^(owner|admin|member|viewer)$")
+
+
+# ---------------------------------------------------------------------------
+# API Registration
+# ---------------------------------------------------------------------------
+
+class ApiRegistrationBase(BaseModel):
+    name: str = Field(..., max_length=256)
+    slug: str = Field(..., max_length=128, pattern=r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
+    description: Optional[str] = None
+    version: str = Field("v1", max_length=32)
+    api_type: str = Field("rest", pattern=r"^(rest|graphql|grpc|websocket)$")
+    documentation_url: Optional[str] = None
+    tags: Optional[list[str]] = None
+    upstream_url: str
+    upstream_protocol: str = Field("https", pattern=r"^(http|https|grpc|grpcs)$")
+    health_check_path: Optional[str] = "/health"
+    gateway_path: Optional[str] = None
+    rate_limit_second: int = Field(5, ge=0)
+    rate_limit_minute: int = Field(100, ge=0)
+    rate_limit_hour: int = Field(3000, ge=0)
+    auth_type: str = Field("key-auth", pattern=r"^(key-auth|oauth2|jwt|none)$")
+    requires_approval: bool = True
+
+
+class ApiRegistrationCreate(ApiRegistrationBase):
+    team_id: uuid.UUID
+
+
+class ApiRegistrationRead(ApiRegistrationBase, OrmModel):
+    id: uuid.UUID
+    team_id: uuid.UUID
+    kong_service_id: Optional[str] = None
+    kong_route_id: Optional[str] = None
+    status: str
+    submitted_at: Optional[datetime] = None
+    reviewed_by: Optional[uuid.UUID] = None
+    reviewed_at: Optional[datetime] = None
+    review_notes: Optional[str] = None
+    activated_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ApiRegistrationUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=256)
+    description: Optional[str] = None
+    version: Optional[str] = Field(None, max_length=32)
+    documentation_url: Optional[str] = None
+    tags: Optional[list[str]] = None
+    upstream_url: Optional[str] = None
+    upstream_protocol: Optional[str] = None
+    health_check_path: Optional[str] = None
+    gateway_path: Optional[str] = None
+    rate_limit_second: Optional[int] = Field(None, ge=0)
+    rate_limit_minute: Optional[int] = Field(None, ge=0)
+    rate_limit_hour: Optional[int] = Field(None, ge=0)
+    auth_type: Optional[str] = None
+    requires_approval: Optional[bool] = None
+
+
+class ApiRegistrationReview(BaseModel):
+    action: str = Field(..., pattern=r"^(approve|reject)$")
+    notes: Optional[str] = None
+
+
+class ApiRegistrationStatusChange(BaseModel):
+    status: str = Field(..., pattern=r"^(active|deprecated|retired)$")
+
+
+# ---------------------------------------------------------------------------
 # AI Prompts
 # ---------------------------------------------------------------------------
 

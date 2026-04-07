@@ -446,3 +446,90 @@ groups:
           impact: "Runaway AI costs. May exhaust monthly budget prematurely."
           runbook_url: "https://wiki.internal/runbooks/ai-cost-budget"
           dashboard_url: "https://grafana.internal/d/ai-layer-overview"
+
+  # =================================================================
+  # OWASP ZAP Security Scanning Alerts
+  # =================================================================
+  - name: zap_security_scanning
+    rules:
+      - alert: ZAPCriticalVulnerability
+        expr: zap_alerts_active{severity="High"} > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: zap
+          team: security
+        annotations:
+          summary: "OWASP ZAP detected {{ $value }} high-severity vulnerabilities"
+          description: >-
+            ZAP security scanner has found {{ $value }} high-severity
+            findings in the API gateway. These may include SQL injection,
+            XSS, SSRF, or other OWASP Top 10 vulnerabilities that require
+            immediate remediation.
+          impact: "Active security vulnerabilities in production API endpoints."
+          runbook_url: "https://wiki.internal/runbooks/zap-critical-finding"
+          dashboard_url: "https://grafana.internal/d/security-scanning"
+
+      - alert: ZAPMediumVulnerability
+        expr: zap_alerts_active{severity="Medium"} > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: zap
+          team: security
+        annotations:
+          summary: "OWASP ZAP detected {{ $value }} medium-severity vulnerabilities"
+          description: >-
+            ZAP security scanner has found {{ $value }} medium-severity
+            findings. Review and prioritize remediation. These typically
+            include missing security headers, cookie misconfigurations,
+            or information disclosure issues.
+          runbook_url: "https://wiki.internal/runbooks/zap-medium-finding"
+          dashboard_url: "https://grafana.internal/d/security-scanning"
+
+      - alert: ZAPNewVulnerabilitySpike
+        expr: |
+          increase(zap_alerts_total[10m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          component: zap
+          team: security
+        annotations:
+          summary: "Spike in new ZAP findings ({{ $value }} in 10m)"
+          description: >-
+            The security scanner detected {{ $value }} new findings in
+            the last 10 minutes. This may indicate a new vulnerability
+            class or a configuration change that exposed attack surface.
+          runbook_url: "https://wiki.internal/runbooks/zap-finding-spike"
+          dashboard_url: "https://grafana.internal/d/security-scanning"
+
+      - alert: ZAPScannerDown
+        expr: zap_up == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: zap
+          team: platform
+        annotations:
+          summary: "OWASP ZAP scanner is unreachable"
+          description: >-
+            The ZAP security scanner daemon has been unreachable for
+            over 5 minutes. Security scanning is not operational.
+            Check the zap and zap-exporter container health.
+          impact: "No active security scanning. New vulnerabilities will not be detected."
+          runbook_url: "https://wiki.internal/runbooks/zap-scanner-down"
+
+      - alert: ZAPScanStale
+        expr: (time() - zap_last_scan_timestamp) > 1800
+        for: 5m
+        labels:
+          severity: warning
+          component: zap
+          team: platform
+        annotations:
+          summary: "ZAP scan results are stale (last scan > 30m ago)"
+          description: >-
+            The last ZAP scan completed more than 30 minutes ago.
+            The scan scheduler may be stuck or ZAP may be overloaded.
+          runbook_url: "https://wiki.internal/runbooks/zap-scan-stale"

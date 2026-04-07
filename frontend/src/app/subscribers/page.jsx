@@ -48,7 +48,7 @@ export default function SubscribersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
       </div>
     )
   }
@@ -57,7 +57,7 @@ export default function SubscribersPage() {
     {
       accessorKey: 'name',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => <span className="font-medium text-gray-900">{row.getValue('name')}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.getValue('name')}</span>,
       filterFn: 'arrIncludes',
     },
     {
@@ -100,7 +100,7 @@ export default function SubscribersPage() {
     {
       accessorKey: 'created_at',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Created" />,
-      cell: ({ row }) => <span className="text-xs text-gray-500">{formatDate(row.getValue('created_at'))}</span>,
+      cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatDate(row.getValue('created_at'))}</span>,
       enableColumnFilter: false,
     },
   ]
@@ -115,23 +115,23 @@ export default function SubscribersPage() {
 
       {showForm && (
         <Card>
-          <h3 className="mb-4 text-sm font-semibold text-gray-900">New Subscriber</h3>
+          <h3 className="mb-4 text-sm font-semibold text-foreground">New Subscriber</h3>
           <form onSubmit={handleCreate} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Name</label>
-              <input name="name" required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+              <label className="mb-1 block text-xs font-medium text-foreground">Name</label>
+              <input name="name" required className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus-visible:ring-ring" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Email</label>
-              <input name="email" type="email" required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+              <label className="mb-1 block text-xs font-medium text-foreground">Email</label>
+              <input name="email" type="email" required className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus-visible:ring-ring" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Organization</label>
-              <input name="organization" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500" />
+              <label className="mb-1 block text-xs font-medium text-foreground">Organization</label>
+              <input name="organization" className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus-visible:ring-ring" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">Tier</label>
-              <select name="tier" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
+              <label className="mb-1 block text-xs font-medium text-foreground">Tier</label>
+              <select name="tier" className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus-visible:ring-ring">
                 <option value="free">Free</option>
                 <option value="standard">Standard</option>
                 <option value="premium">Premium</option>

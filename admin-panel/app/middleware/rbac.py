@@ -52,10 +52,17 @@ DEFAULT_ROLES: dict[str, dict] = {
             "ai:route": True,
             "ai:transform": True,
             "ai:documentation": True,
+            "teams:read": True,
+            "teams:write": True,
+            "teams:delete": True,
+            "api_registry:read": True,
+            "api_registry:write": True,
+            "api_registry:delete": True,
+            "api_registry:approve": True,
         },
     },
     "admin": {
-        "description": "Manage subscribers, subscriptions, and API keys",
+        "description": "Manage subscribers, subscriptions, API keys, teams, and API registry",
         "permissions": {
             "subscribers:read": True,
             "subscribers:write": True,
@@ -77,10 +84,17 @@ DEFAULT_ROLES: dict[str, dict] = {
             "ai:route": True,
             "ai:transform": True,
             "ai:documentation": True,
+            "teams:read": True,
+            "teams:write": True,
+            "teams:delete": True,
+            "api_registry:read": True,
+            "api_registry:write": True,
+            "api_registry:delete": True,
+            "api_registry:approve": True,
         },
     },
     "operator": {
-        "description": "Day-to-day operations: manage subscribers and keys",
+        "description": "Day-to-day operations: manage subscribers, keys, teams, and APIs",
         "permissions": {
             "subscribers:read": True,
             "subscribers:write": True,
@@ -95,6 +109,10 @@ DEFAULT_ROLES: dict[str, dict] = {
             "ai:read": True,
             "ai:analyze": True,
             "ai:rate-limit": True,
+            "teams:read": True,
+            "teams:write": True,
+            "api_registry:read": True,
+            "api_registry:write": True,
         },
     },
     "viewer": {
@@ -108,6 +126,8 @@ DEFAULT_ROLES: dict[str, dict] = {
             "gateway:read": True,
             "audit:read": True,
             "ai:read": True,
+            "teams:read": True,
+            "api_registry:read": True,
         },
     },
 }
@@ -216,6 +236,19 @@ async def get_user_role_names(
         .options(selectinload(UserRole.role))
     )
     return [ur.role.name for ur in result.scalars().all() if ur.role]
+
+
+# Platform admin roles that bypass team-scoped checks
+PLATFORM_ADMIN_ROLES = {"super_admin", "admin"}
+
+
+async def is_platform_admin(user: User, db: AsyncSession) -> bool:
+    """Check if a user holds a platform-level admin role (super_admin or admin).
+
+    Platform admins can bypass team membership checks to manage any resource.
+    """
+    role_names = await get_user_role_names(user, db)
+    return bool(PLATFORM_ADMIN_ROLES.intersection(role_names))
 
 
 # ---------------------------------------------------------------------------

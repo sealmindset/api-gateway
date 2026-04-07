@@ -29,7 +29,7 @@ remote_write:
       capacity: 10000
     write_relabel_configs:
       - source_labels: [__name__]
-        regex: "kong_.*|node_.*|container_.*"
+        regex: "kong_.*|node_.*|container_.*|zap_.*"
         action: keep
 
 scrape_configs:
@@ -85,6 +85,18 @@ scrape_configs:
           - "cadvisor:8080"
         labels:
           component: "infrastructure"
+
+  # ---------------------------------------------------------------
+  # OWASP ZAP Security Scanner Metrics
+  # ---------------------------------------------------------------
+  - job_name: "zap-exporter"
+    scrape_interval: 30s
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - "zap-exporter:9290"
+        labels:
+          component: "security"
 
   # ---------------------------------------------------------------
   # Kubernetes Service Discovery - Pod auto-discovery

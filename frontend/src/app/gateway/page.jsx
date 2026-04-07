@@ -41,7 +41,7 @@ export default function GatewayPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
       </div>
     )
   }
@@ -57,7 +57,7 @@ export default function GatewayPage() {
     {
       accessorKey: 'name',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => <span className="font-medium text-gray-900">{row.getValue('name')}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.getValue('name')}</span>,
       filterFn: 'arrIncludes',
     },
     {
@@ -81,7 +81,7 @@ export default function GatewayPage() {
       id: 'timeouts',
       accessorFn: (row) => `C:${row.connect_timeout / 1000}s R:${row.read_timeout / 1000}s W:${row.write_timeout / 1000}s`,
       header: 'Timeouts',
-      cell: ({ row }) => <span className="text-xs text-gray-500">{row.getValue('timeouts')}</span>,
+      cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.getValue('timeouts')}</span>,
       enableSorting: false,
       enableColumnFilter: false,
     },
@@ -102,7 +102,7 @@ export default function GatewayPage() {
     {
       accessorKey: 'name',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => <span className="font-medium text-gray-900">{row.getValue('name')}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.getValue('name')}</span>,
       filterFn: 'arrIncludes',
     },
     {
@@ -158,7 +158,7 @@ export default function GatewayPage() {
     {
       accessorKey: 'name',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Plugin" />,
-      cell: ({ row }) => <span className="font-medium text-gray-900">{row.getValue('name')}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.getValue('name')}</span>,
       filterFn: 'arrIncludes',
     },
     {
@@ -204,15 +204,15 @@ export default function GatewayPage() {
     <div className="space-y-6">
       {/* Kong version banner */}
       {info && (
-        <Card className="flex items-center gap-4 bg-gray-50">
-          <div className="rounded-lg bg-white p-2 shadow-sm">
-            <svg className="h-8 w-8 text-brand-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <Card className="flex items-center gap-4 bg-muted">
+          <div className="rounded-lg bg-card p-2 shadow-sm">
+            <svg className="h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 0 1-3-3m3 3a3 3 0 1 0 0 6h13.5a3 3 0 1 0 0-6m-16.5-3a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3m-19.5 0a4.5 4.5 0 0 1 .9-2.7L5.737 5.1a3.375 3.375 0 0 1 2.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 0 1 .9 2.7m0 0a3 3 0 0 1-3 3m0 3h.008v.008h-.008v-.008Zm0-6h.008v.008h-.008v-.008Zm-3 6h.008v.008h-.008v-.008Zm0-6h.008v.008h-.008v-.008Z" />
             </svg>
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900">Kong Gateway {info.version}</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-sm font-semibold text-foreground">Kong Gateway {info.version}</p>
+            <p className="text-xs text-muted-foreground">
               Node: {info.node_id?.slice(0, 12)} &middot; DB: {info.configuration?.database}
               &middot; Plugins: {info.plugins?.available_on_server ? Object.keys(info.plugins.available_on_server).length : '?'} available
             </p>
@@ -221,7 +221,7 @@ export default function GatewayPage() {
       )}
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-border">
         <nav className="-mb-px flex gap-6">
           {tabs.map((tab) => (
             <button
@@ -229,8 +229,8 @@ export default function GatewayPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`border-b-2 pb-3 text-sm font-medium transition-colors ${
                 activeTab === tab.id
-                  ? 'border-brand-600 text-brand-600'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:border-border hover:text-accent-foreground'
               }`}
             >
               {tab.label}
@@ -259,7 +259,7 @@ export default function GatewayPage() {
 
       {activeTab === 'info' && info && (
         <Card>
-          <h2 className="mb-4 text-base font-semibold text-gray-900">Kong Node Information</h2>
+          <h2 className="mb-4 text-base font-semibold text-foreground">Kong Node Information</h2>
           <div className="space-y-3">
             <InfoRow label="Version" value={info.version} />
             <InfoRow label="Node ID" value={info.node_id} />
@@ -277,9 +277,9 @@ export default function GatewayPage() {
 
 function InfoRow({ label, value }) {
   return (
-    <div className="flex items-start justify-between border-b border-gray-100 pb-3 last:border-0 last:pb-0">
-      <span className="text-sm font-medium text-gray-600">{label}</span>
-      <code className="max-w-md truncate rounded bg-gray-100 px-2 py-1 text-xs text-gray-800">{value || '—'}</code>
+    <div className="flex items-start justify-between border-b border-border pb-3 last:border-0 last:pb-0">
+      <span className="text-sm font-medium text-muted-foreground">{label}</span>
+      <code className="max-w-md truncate rounded bg-muted px-2 py-1 text-xs text-foreground">{value || '—'}</code>
     </div>
   )
 }

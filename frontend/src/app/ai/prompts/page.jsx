@@ -83,7 +83,7 @@ export default function PromptsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
       </div>
     )
   }
@@ -102,7 +102,7 @@ export default function PromptsPage() {
     {
       accessorKey: 'name',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => <span className="font-medium text-gray-900">{row.getValue('name')}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.getValue('name')}</span>,
       filterFn: 'arrIncludes',
     },
     {
@@ -143,13 +143,13 @@ export default function PromptsPage() {
     {
       accessorKey: 'version',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Version" />,
-      cell: ({ row }) => <span className="text-xs text-gray-500">v{row.getValue('version')}</span>,
+      cell: ({ row }) => <span className="text-xs text-muted-foreground">v{row.getValue('version')}</span>,
       enableColumnFilter: false,
     },
     {
       accessorKey: 'updated_at',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
-      cell: ({ row }) => <span className="text-xs text-gray-500">{formatDate(row.getValue('updated_at'))}</span>,
+      cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatDate(row.getValue('updated_at'))}</span>,
       enableColumnFilter: false,
     },
     {
@@ -159,8 +159,8 @@ export default function PromptsPage() {
         const original = row.original
         return (
           <div className="flex gap-2">
-            <button onClick={() => setEditing(original)} className="text-xs font-medium text-brand-600 hover:text-brand-800">Edit</button>
-            <button onClick={() => handleDelete(original)} className="text-xs font-medium text-red-600 hover:text-red-800">Delete</button>
+            <button onClick={() => setEditing(original)} className="text-xs font-medium text-primary hover:text-primary/80">Edit</button>
+            <button onClick={() => handleDelete(original)} className="text-xs font-medium text-destructive hover:text-destructive/80">Delete</button>
           </div>
         )
       },
@@ -222,7 +222,7 @@ function PromptForm({ prompt, onSave, onCancel }) {
 
   return (
     <Card>
-      <h2 className="mb-6 text-base font-semibold text-gray-900">
+      <h2 className="mb-6 text-base font-semibold text-foreground">
         {isNew ? 'Create New Prompt' : `Edit: ${prompt.name}`}
       </h2>
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -242,7 +242,7 @@ function PromptForm({ prompt, onSave, onCancel }) {
               onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
               required
               disabled={!isNew}
-              className="input disabled:bg-gray-100 disabled:text-gray-500"
+              className="input disabled:bg-muted disabled:text-muted-foreground"
               placeholder="anomaly-detection"
             />
           </Field>
@@ -251,7 +251,7 @@ function PromptForm({ prompt, onSave, onCancel }) {
               value={form.category}
               onChange={(e) => set('category', e.target.value)}
               disabled={!isNew}
-              className="input disabled:bg-gray-100"
+              className="input disabled:bg-muted"
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -306,13 +306,13 @@ function PromptForm({ prompt, onSave, onCancel }) {
               type="checkbox"
               checked={form.is_active}
               onChange={(e) => set('is_active', e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+              className="h-4 w-4 rounded border-border text-primary focus-visible:ring-ring"
             />
             Active
           </label>
         </div>
 
-        <div className="flex gap-3 border-t border-gray-200 pt-5">
+        <div className="flex gap-3 border-t border-border pt-5">
           <Button type="submit">{isNew ? 'Create Prompt' : 'Save Changes'}</Button>
           <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
         </div>
@@ -340,8 +340,8 @@ function PromptForm({ prompt, onSave, onCancel }) {
 function Field({ label, required, disabled, children }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-gray-700">
-        {label} {required && <span className="text-red-500">*</span>}
+      <label className="mb-1 block text-xs font-medium text-foreground">
+        {label} {required && <span className="text-destructive">*</span>}
       </label>
       {children}
     </div>

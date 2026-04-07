@@ -516,3 +516,7 @@ LocalStack build git hash: 5c1431745
 2026-04-06T14:04:34.507  INFO --- [  MainThread] l.p.c.b.licensingv2        : Successfully activated cached license 1d7a43e7-7a23-48c8-93be-ed37eedbe261:trial from /etc/localstack/conf.d/license.json 🔑✅
 2026-04-06T14:04:35.143  INFO --- [  MainThread] l.p.c.extensions.plugins   : loaded 0 extensions
 Ready.
+^CShutting down...
+^CERROR: '['docker', 'stop', '--time', '10', '3fe29f1efb0504ea880354ce7f14142d69c3936a23d7a33a149b724f1411d0c0']': exit code 130; output: b'Flag --time has been deprecated, use --timeout instead\n'
+2026-04-06T13:02:38.838  INFO --- [  MainThread] l.utils.bootstrap          : error cleaning up localstack container localstack-main: ('Docker process returned with errorcode 130', b'Flag --time has been deprecated, use --timeout instead\n', None)
+^C

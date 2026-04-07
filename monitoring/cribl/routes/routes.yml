@@ -6,6 +6,26 @@ description: "Routes for API Gateway monitoring - Kong logs, auth events, rate l
 
 inputs:
   # ---------------------------------------------------------------
+  # HTTP Input: ZAP security scan findings from zap-exporter
+  # ---------------------------------------------------------------
+  - id: http_zap
+    type: http
+    disabled: false
+    conf:
+      host: "0.0.0.0"
+      port: 9081
+      enableTLS: false
+      maxActiveCxn: 50
+      activityTimeout: 30
+      authType: token
+      authToken: "${CRIBL_HTTP_AUTH_TOKEN}"
+      headers:
+        - name: "X-Cribl-Source"
+          value: "owasp-zap"
+    pipeline: ""
+    output: default
+
+  # ---------------------------------------------------------------
   # Syslog Input: Kong access logs via TCP 5514
   # Kong configured to send logs via syslog plugin
   # ---------------------------------------------------------------
@@ -137,7 +157,28 @@ routes:
     description_short: "Rate limit events"
 
   # ---------------------------------------------------------------
-  # Route 4: Prometheus metrics passthrough
+  # Route 4: OWASP ZAP Security Scan Findings -> security-scanning pipeline
+  # Match: events from ZAP exporter HTTP input with sourcetype zap:alert
+  # ---------------------------------------------------------------
+  - id: security_scan_events
+    name: "Security Scan Findings"
+    description: "Route OWASP ZAP findings through security scanning pipeline"
+    filter: >-
+      __inputId === 'http_zap'
+      || (
+        _raw && _raw.match(/"sourcetype":\s*"zap:/)
+      )
+      || (
+        source === 'owasp-zap'
+      )
+    pipeline: security-scanning
+    output: security_scan_out
+    enabled: true
+    final: true
+    description_short: "ZAP security findings"
+
+  # ---------------------------------------------------------------
+  # Route 5: Prometheus metrics passthrough
   # ---------------------------------------------------------------
   - id: prometheus_metrics
     name: "Prometheus Metrics"
@@ -190,6 +231,16 @@ outputs:
   prometheus_out:
     type: single
     output: prometheus_remote_write
+
+  security_scan_out:
+    type: router
+    routes:
+      - output: splunk_hec
+        filter: "severity_score >= 3"
+      - output: s3_archive
+        filter: "true"
+      - output: alerting_webhook
+        filter: "severity_score >= 3"
 
   s3_unmatched:
     type: single

@@ -44,16 +44,16 @@ function saveState(storageKey, key, value) {
  * Full-featured data table with TanStack React Table.
  *
  * Props:
- *   columns           – TanStack column defs (use DataTableColumnHeader for headers)
- *   data              – array of row objects
- *   searchKey         – column ID for global text search
- *   searchPlaceholder – placeholder for search input
- *   filterableColumns – array of { id, title, options: [{ label, value }] } for toolbar filter buttons
- *   storageKey        – localStorage prefix for persisting state
- *   title             – optional heading above the table
- *   emptyMessage      – shown when data is empty
- *   enableCSVExport   – show CSV export button (default true)
- *   csvFilename       – filename for CSV export
+ *   columns           - TanStack column defs (use DataTableColumnHeader for headers)
+ *   data              - array of row objects
+ *   searchKey         - column ID for global text search
+ *   searchPlaceholder - placeholder for search input
+ *   filterableColumns - array of { id, title, options: [{ label, value }] } for toolbar filter buttons
+ *   storageKey        - localStorage prefix for persisting state
+ *   title             - optional heading above the table
+ *   emptyMessage      - shown when data is empty
+ *   enableCSVExport   - show CSV export button (default true)
+ *   csvFilename       - filename for CSV export
  */
 export default function DataTable({
   columns,
@@ -144,15 +144,15 @@ export default function DataTable({
       />
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="rounded-md border border-border overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b border-t border-gray-200 bg-gray-50">
+              <tr key={headerGroup.id} className="border-b border-border">
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="h-10 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wider text-gray-500"
+                    className="h-10 px-3 text-left align-middle font-medium text-muted-foreground"
                     style={header.getSize() !== 150 ? { width: header.getSize() } : undefined}
                   >
                     {header.isPlaceholder
@@ -166,14 +166,17 @@ export default function DataTable({
               </tr>
             ))}
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50">
+                <tr
+                  key={row.id}
+                  className="border-b border-border transition-colors hover:bg-muted/50"
+                >
                   {row.getVisibleCells().map((cell) => (
                     <td
                       key={cell.id}
-                      className="px-4 py-3 align-middle text-gray-700"
+                      className="px-3 py-2.5 align-middle"
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
@@ -187,12 +190,12 @@ export default function DataTable({
               <tr>
                 <td
                   colSpan={columns.length}
-                  className="py-16 text-center"
+                  className="h-24 text-center text-muted-foreground"
                 >
-                  <svg className="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <svg className="mx-auto h-10 w-10 text-muted-foreground/40" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m6 4.125l2.25 2.25m0 0l2.25 2.25M12 11.625l2.25-2.25M12 11.625l-2.25 2.25M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                   </svg>
-                  <p className="mt-2 text-sm text-gray-500">{emptyMessage}</p>
+                  <p className="mt-2 text-sm">{emptyMessage}</p>
                 </td>
               </tr>
             )}

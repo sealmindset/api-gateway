@@ -15,7 +15,7 @@ from app.config import get_settings
 from app.middleware.auth import configure_oauth
 from app.middleware.rbac import close_redis, seed_default_roles
 from app.models.database import async_session_factory, close_db, init_db
-from app.routers import ai, auth, gateway, rbac, subscribers, subscriptions
+from app.routers import ai, api_registry, auth, gateway, rbac, subscribers, subscriptions, teams
 
 logging.basicConfig(
     level=logging.INFO,
@@ -94,6 +94,8 @@ def create_app() -> FastAPI:
     app.include_router(subscriptions.sub_router)
     app.include_router(rbac.router)
     app.include_router(gateway.router)
+    app.include_router(teams.router)
+    app.include_router(api_registry.router)
     app.include_router(ai.router)
 
     # -- Static files -------------------------------------------------------

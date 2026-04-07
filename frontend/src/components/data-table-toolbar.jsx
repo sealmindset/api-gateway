@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Search, X, Filter, ChevronDown, Eye, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -23,20 +23,20 @@ export function DataTableToolbar({
   return (
     <div className="flex flex-wrap items-center gap-2 px-4 py-3">
       {title && (
-        <h2 className="mr-2 text-base font-semibold text-gray-900">{title}</h2>
+        <h2 className="mr-2 text-base font-semibold text-foreground">{title}</h2>
       )}
 
       {/* Global search on a specific column */}
       {searchKey && (
         <div className="relative min-w-[200px] max-w-sm flex-1">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             placeholder={searchPlaceholder}
             value={searchValue}
             onChange={(e) =>
               table.getColumn(searchKey)?.setFilterValue(e.target.value)
             }
-            className="w-full rounded-md border border-gray-200 bg-white py-1.5 pl-8 pr-3 text-sm outline-none placeholder:text-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+            className="w-full rounded-md border border-input bg-background py-1.5 pl-8 pr-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
       )}
@@ -57,7 +57,7 @@ export function DataTableToolbar({
 
       {/* Active filter count badge */}
       {activeFilterCount > 0 && (
-        <span className="inline-flex items-center rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-700">
+        <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
           {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''}
         </span>
       )}
@@ -66,7 +66,7 @@ export function DataTableToolbar({
       {isFiltered && (
         <button
           onClick={() => table.resetColumnFilters()}
-          className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700"
+          className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
         >
           <X className="h-3 w-3" />
           Reset
@@ -77,7 +77,7 @@ export function DataTableToolbar({
       <div className="flex-1" />
 
       {/* Row count */}
-      <span className="text-xs text-gray-500">
+      <span className="text-xs text-muted-foreground">
         {table.getFilteredRowModel().rows.length} row{table.getFilteredRowModel().rows.length !== 1 ? 's' : ''}
       </span>
 
@@ -85,7 +85,7 @@ export function DataTableToolbar({
       {onExportCSV && (
         <button
           onClick={onExportCSV}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 text-xs text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           title="Export CSV"
         >
           <Download className="h-3.5 w-3.5" />
@@ -101,27 +101,67 @@ export function DataTableToolbar({
 
 /**
  * Faceted filter button: click to open a popover with multi-select checkboxes.
+ * Uses position:fixed to escape overflow containers.
  */
 function FacetedFilterButton({ column, title, options }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const ref = useRef(null)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
+  const btnRef = useRef(null)
+  const dropdownRef = useRef(null)
 
   if (!column) return null
 
   const filterValue = column.getFilterValue()
   const selected = Array.isArray(filterValue) ? filterValue : []
 
+  const openDropdown = () => {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setDropdownPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+      })
+    }
+    setOpen(true)
+    setSearch('')
+  }
+
   // Close on outside click
   useEffect(() => {
     if (!open) return
     const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target) &&
+        btnRef.current &&
+        !btnRef.current.contains(e.target)
+      ) {
         setOpen(false)
       }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  // Reposition on scroll/resize
+  useEffect(() => {
+    if (!open || !btnRef.current) return
+    const reposition = () => {
+      if (btnRef.current) {
+        const rect = btnRef.current.getBoundingClientRect()
+        setDropdownPos({
+          top: rect.bottom + 4,
+          left: rect.left,
+        })
+      }
+    }
+    window.addEventListener('scroll', reposition, true)
+    window.addEventListener('resize', reposition)
+    return () => {
+      window.removeEventListener('scroll', reposition, true)
+      window.removeEventListener('resize', reposition)
+    }
   }, [open])
 
   const filteredOptions = search
@@ -138,23 +178,21 @@ function FacetedFilterButton({ column, title, options }) {
   }
 
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
-        onClick={() => {
-          setOpen(!open)
-          setSearch('')
-        }}
+        ref={btnRef}
+        onClick={() => (open ? setOpen(false) : openDropdown())}
         className={cn(
           'inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors',
           selected.length > 0
-            ? 'border-brand-300 bg-brand-50 text-brand-700'
-            : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+            ? 'border-primary/50 bg-primary/5 text-primary'
+            : 'border-input bg-background text-muted-foreground hover:bg-accent',
         )}
       >
         <Filter className="h-3.5 w-3.5" />
         {title}
         {selected.length > 0 && (
-          <span className="ml-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-brand-600 px-1 text-[10px] font-medium text-white">
+          <span className="ml-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
             {selected.length}
           </span>
         )}
@@ -162,16 +200,23 @@ function FacetedFilterButton({ column, title, options }) {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-40 mt-1 w-56 rounded-md border border-gray-200 bg-white p-2 shadow-lg">
+        <div
+          ref={dropdownRef}
+          className="fixed z-50 w-56 rounded-md border border-border bg-card p-2 shadow-lg"
+          style={{
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+          }}
+        >
           {/* Search */}
           <div className="relative mb-2">
-            <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               placeholder={`Search ${title.toLowerCase()}...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-md border border-gray-200 bg-white py-1 pl-7 pr-2 text-xs outline-none placeholder:text-gray-400 focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              className="w-full rounded-md border border-input bg-background py-1 pl-7 pr-2 text-xs outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
               autoFocus
             />
           </div>
@@ -183,14 +228,14 @@ function FacetedFilterButton({ column, title, options }) {
                 const allValues = filteredOptions.map((o) => o.value)
                 column.setFilterValue(allValues.length > 0 ? allValues : undefined)
               }}
-              className="text-[10px] text-brand-600 hover:underline"
+              className="text-[10px] text-primary hover:underline"
             >
               Select all
             </button>
             {selected.length > 0 && (
               <button
                 onClick={() => column.setFilterValue(undefined)}
-                className="text-[10px] text-gray-500 hover:text-gray-700"
+                className="text-[10px] text-muted-foreground hover:text-foreground"
               >
                 Clear
               </button>
@@ -200,7 +245,7 @@ function FacetedFilterButton({ column, title, options }) {
           {/* Options */}
           <div className="max-h-48 space-y-0.5 overflow-y-auto">
             {filteredOptions.length === 0 ? (
-              <p className="py-2 text-center text-xs text-gray-500">
+              <p className="py-2 text-center text-xs text-muted-foreground">
                 No options
               </p>
             ) : (
@@ -209,13 +254,13 @@ function FacetedFilterButton({ column, title, options }) {
                 return (
                   <label
                     key={option.value}
-                    className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-xs hover:bg-gray-50"
+                    className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-xs hover:bg-accent/50"
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggleValue(option.value)}
-                      className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                      className="h-3.5 w-3.5 rounded border-input text-primary focus:ring-ring"
                     />
                     <span className="truncate">{option.label}</span>
                   </label>
@@ -225,21 +270,40 @@ function FacetedFilterButton({ column, title, options }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 
 /**
  * Column visibility dropdown.
+ * Uses position:fixed to escape overflow containers.
  */
 function ColumnVisibilityDropdown({ table }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef(null)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
+  const btnRef = useRef(null)
+  const dropdownRef = useRef(null)
+
+  const openDropdown = () => {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setDropdownPos({
+        top: rect.bottom + 4,
+        left: rect.right - 192, // 192px = w-48, align right edge
+      })
+    }
+    setOpen(true)
+  }
 
   useEffect(() => {
     if (!open) return
     const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target) &&
+        btnRef.current &&
+        !btnRef.current.contains(e.target)
+      ) {
         setOpen(false)
       }
     }
@@ -247,19 +311,46 @@ function ColumnVisibilityDropdown({ table }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
+  useEffect(() => {
+    if (!open || !btnRef.current) return
+    const reposition = () => {
+      if (btnRef.current) {
+        const rect = btnRef.current.getBoundingClientRect()
+        setDropdownPos({
+          top: rect.bottom + 4,
+          left: rect.right - 192,
+        })
+      }
+    }
+    window.addEventListener('scroll', reposition, true)
+    window.addEventListener('resize', reposition)
+    return () => {
+      window.removeEventListener('scroll', reposition, true)
+      window.removeEventListener('resize', reposition)
+    }
+  }, [open])
+
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
-        onClick={() => setOpen(!open)}
-        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 text-xs text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+        ref={btnRef}
+        onClick={() => (open ? setOpen(false) : openDropdown())}
+        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
       >
         <Eye className="h-3.5 w-3.5" />
         Columns
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-48 rounded-md border border-gray-200 bg-white p-2 shadow-lg">
-          <p className="mb-1 px-1 text-xs font-medium text-gray-500">
+        <div
+          ref={dropdownRef}
+          className="fixed z-50 w-48 rounded-md border border-border bg-card p-2 shadow-lg"
+          style={{
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+          }}
+        >
+          <p className="mb-1 px-1 text-xs font-medium text-muted-foreground">
             Toggle columns
           </p>
           {table.getAllLeafColumns().map((column) => {
@@ -267,13 +358,13 @@ function ColumnVisibilityDropdown({ table }) {
             return (
               <label
                 key={column.id}
-                className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-gray-50"
+                className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-accent/50"
               >
                 <input
                   type="checkbox"
                   checked={column.getIsVisible()}
                   onChange={column.getToggleVisibilityHandler()}
-                  className="h-3.5 w-3.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                  className="h-3.5 w-3.5 rounded border-input text-primary focus:ring-ring"
                 />
                 <span className="truncate capitalize">
                   {typeof column.columnDef.header === 'string'
@@ -285,6 +376,6 @@ function ColumnVisibilityDropdown({ table }) {
           })}
         </div>
       )}
-    </div>
+    </>
   )
 }

@@ -1,0 +1,159 @@
+# =============================================================================
+# Cribl Pipeline: OWASP ZAP Security Scanning Events
+# =============================================================================
+# Processes ZAP alert events from the zap-exporter service.
+# Enriches, classifies, and routes findings to SIEM + alerting.
+# =============================================================================
+
+id: security-scanning
+conf:
+  asyncFuncTimeout: 10000
+  output: default
+  description: "Process OWASP ZAP security scan findings"
+
+functions:
+  # -------------------------------------------------------------------------
+  # Step 1: Parse JSON payload from zap-exporter
+  # -------------------------------------------------------------------------
+  - id: json_parse
+    filter: "true"
+    disabled: false
+    conf:
+      mode: extract
+      src: _raw
+      type: json
+
+  # -------------------------------------------------------------------------
+  # Step 2: Extract and normalize security event fields
+  # -------------------------------------------------------------------------
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        # Core classification
+        - name: event_type
+          value: "'security_scan'"
+        - name: scanner
+          value: "'owasp-zap'"
+        - name: scan_mode
+          value: "scan_mode || 'passive'"
+
+        # Severity normalization (ZAP uses High/Medium/Low/Informational)
+        - name: severity_normalized
+          value: >-
+            severity === 'High' ? 'critical' :
+            severity === 'Medium' ? 'high' :
+            severity === 'Low' ? 'medium' :
+            'info'
+
+        # Numeric severity for sorting and thresholding
+        - name: severity_score
+          value: >-
+            severity === 'High' ? 4 :
+            severity === 'Medium' ? 3 :
+            severity === 'Low' ? 2 : 1
+
+        # Extract host/path from URL
+        - name: target_host
+          value: "url ? url.replace(/^https?:\\/\\//, '').split('/')[0] : ''"
+        - name: target_path
+          value: "url ? '/' + url.replace(/^https?:\\/\\//, '').split('/').slice(1).join('/') : ''"
+
+        # OWASP Top 10 category label
+        - name: owasp_label
+          value: >-
+            owasp_category === 'A01' ? 'Broken Access Control' :
+            owasp_category === 'A02' ? 'Cryptographic Failures' :
+            owasp_category === 'A03' ? 'Injection' :
+            owasp_category === 'A04' ? 'Insecure Design' :
+            owasp_category === 'A05' ? 'Security Misconfiguration' :
+            owasp_category === 'A06' ? 'Vulnerable Components' :
+            owasp_category === 'A07' ? 'Auth Failures' :
+            owasp_category === 'A08' ? 'Data Integrity Failures' :
+            owasp_category === 'A09' ? 'Logging Failures' :
+            owasp_category === 'A10' ? 'SSRF' :
+            'Uncategorized'
+
+        # Timestamp normalization
+        - name: _time
+          value: "timestamp ? new Date(timestamp).getTime() / 1000 : Date.now() / 1000"
+
+  # -------------------------------------------------------------------------
+  # Step 3: Mask sensitive data in evidence and URL fields
+  # -------------------------------------------------------------------------
+  - id: mask
+    filter: "true"
+    disabled: false
+    conf:
+      rules:
+        # Mask bearer tokens in evidence
+        - matchRegex: "/Bearer\\s+[A-Za-z0-9\\-._~+\\/]+=*/gi"
+          replaceExpr: "'Bearer [REDACTED]'"
+          fields:
+            - evidence
+            - url
+        # Mask API keys in URLs
+        - matchRegex: "/(api[_-]?key|apikey|token|secret|password)=([^&\\s]+)/gi"
+          replaceExpr: "'$1=***'"
+          fields:
+            - url
+            - evidence
+        # Mask email addresses in evidence
+        - matchRegex: "/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g"
+          replaceExpr: "'***@***.***'"
+          fields:
+            - evidence
+
+  # -------------------------------------------------------------------------
+  # Step 4: Tag for routing based on severity
+  # -------------------------------------------------------------------------
+  - id: eval
+    filter: "severity_score >= 3"
+    disabled: false
+    conf:
+      add:
+        - name: _route
+          value: "['siem', 's3_archive', 'alerting']"
+        - name: index
+          value: "'security_alerts'"
+        - name: sourcetype
+          value: "'zap:security_alert'"
+
+  - id: eval
+    filter: "severity_score < 3"
+    disabled: false
+    conf:
+      add:
+        - name: _route
+          value: "['s3_archive']"
+        - name: index
+          value: "'security_findings'"
+        - name: sourcetype
+          value: "'zap:finding'"
+
+  # -------------------------------------------------------------------------
+  # Step 5: Add Cribl processing metadata
+  # -------------------------------------------------------------------------
+  - id: eval
+    filter: "true"
+    disabled: false
+    conf:
+      add:
+        - name: cribl_pipe
+          value: "'security-scanning'"
+        - name: cribl_processed_at
+          value: "Date.now() / 1000"
+
+  # -------------------------------------------------------------------------
+  # Step 6: Serialize to JSON for output
+  # -------------------------------------------------------------------------
+  - id: serialize
+    filter: "true"
+    disabled: false
+    conf:
+      type: json
+      fields:
+        - "!_*"
+        - _time
+        - _route

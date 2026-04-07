@@ -36,6 +36,11 @@ class Settings(BaseSettings):
         "http://localhost:8000/auth/callback",
         description="OAuth2 redirect URI registered in Entra ID",
     )
+    oidc_discovery_url: Optional[str] = Field(
+        None,
+        description="Override OIDC discovery URL. If set, bypasses Entra-derived URL. "
+                    "Use for local dev with a mock OIDC provider.",
+    )
 
     @property
     def entra_authority(self) -> str:
@@ -43,6 +48,8 @@ class Settings(BaseSettings):
 
     @property
     def entra_openid_config_url(self) -> str:
+        if self.oidc_discovery_url:
+            return self.oidc_discovery_url
         return f"{self.entra_authority}/v2.0/.well-known/openid-configuration"
 
     @property

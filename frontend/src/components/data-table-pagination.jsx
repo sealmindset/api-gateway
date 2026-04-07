@@ -14,20 +14,20 @@ export function DataTablePagination({ table }) {
   const totalRows = table.getFilteredRowModel().rows.length
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 px-4 py-3 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border px-4 py-3 text-sm">
       {/* Total rows */}
-      <div className="text-xs text-gray-500">
+      <div className="text-xs text-muted-foreground">
         {totalRows} row{totalRows !== 1 ? 's' : ''} total
       </div>
 
       <div className="flex items-center gap-4">
         {/* Page size selector */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Rows per page</span>
+          <span className="text-xs text-muted-foreground">Rows per page</span>
           <select
             value={table.getState().pagination.pageSize}
             onChange={(e) => table.setPageSize(Number(e.target.value))}
-            className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="rounded-md border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
           >
             {[10, 20, 50, 100].map((size) => (
               <option key={size} value={size}>
@@ -38,7 +38,7 @@ export function DataTablePagination({ table }) {
         </div>
 
         {/* Page indicator */}
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
           Page {pageIndex + 1} of {pageCount || 1}
         </span>
 
@@ -85,10 +85,10 @@ function NavButton({ onClick, disabled, title, children }) {
       disabled={disabled}
       title={title}
       className={cn(
-        'inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 transition-colors',
+        'inline-flex h-8 w-8 items-center justify-center rounded-md border border-input transition-colors',
         disabled
-          ? 'cursor-not-allowed opacity-50'
-          : 'hover:bg-gray-50 hover:text-gray-900',
+          ? 'opacity-50 cursor-not-allowed'
+          : 'hover:bg-accent hover:text-accent-foreground',
       )}
     >
       {children}

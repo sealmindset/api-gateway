@@ -37,7 +37,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
       </div>
     )
   }
@@ -46,7 +46,7 @@ export default function DashboardPage() {
     {
       accessorKey: 'name',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => <span className="font-medium text-gray-900">{row.getValue('name')}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.getValue('name')}</span>,
       filterFn: 'arrIncludes',
     },
     {
@@ -82,7 +82,7 @@ export default function DashboardPage() {
     {
       accessorKey: 'name',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-      cell: ({ row }) => <span className="font-medium text-gray-900">{row.getValue('name')}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.getValue('name')}</span>,
       filterFn: 'arrIncludes',
     },
     {
@@ -128,7 +128,7 @@ export default function DashboardPage() {
     {
       accessorKey: 'name',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Plugin" />,
-      cell: ({ row }) => <span className="font-medium text-gray-900">{row.getValue('name')}</span>,
+      cell: ({ row }) => <span className="font-medium text-foreground">{row.getValue('name')}</span>,
       filterFn: 'arrIncludes',
     },
     {
