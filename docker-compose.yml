@@ -425,14 +425,14 @@ services:
       CRIBL_DIST_MODE: single
     volumes:
       - cribl_data:/opt/cribl/state
-      - ./monitoring/cribl/local:/opt/cribl/local:ro
+      - ./monitoring/cribl/local:/opt/cribl/local
     ports:
-      - "${CRIBL_PORT:-9420}:9420"        # Cribl UI
+      - "${CRIBL_PORT:-9420}:9000"        # Cribl UI (internal 9000)
       - "${CRIBL_SYSLOG_PORT:-5140}:5140" # Syslog input
     networks:
       - api-gateway-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9420/api/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/api/v1/health"]
       interval: 20s
       timeout: 10s
       retries: 3
